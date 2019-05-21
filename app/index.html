@@ -16,31 +16,75 @@
 <body>
 
   <header>
-    <h1>Push Codelab</h1>
+    <h1>Enhanced from <a href="https://codelabs.developers.google.com/codelabs/push-notifications/" target="_blank">Push Codelab</a></h1>
+    <h3>View <a href="https://github.com/GoogleChromeLabs/web-push-codelab" target="_blank">SOURCE</a> on GitHub</h3>
   </header>
 
   <main>
-    <p>Welcome to the push messaging codelab. The button below needs to be
-    fixed to support subscribing to push.</p>
+    <p>Welcome to the push messaging "enhanced" codelab. Push the button below to enable/disable push messages.</p>
     <p>
       <button disabled class="js-push-btn mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
         Enable Push Messaging
       </button>
     </p>
+    <!-- Textfield with Floating Label -->
+
+    <p id="note"><b>Note:  </b>We don't yet have an <code>applicationServerPublicKey</code> to create a <code>subscription</code>.<br/>
+      Please proceed to the <a href="https://web-push-codelab.glitch.me/" target="_blank">Push Companion Site</a>,
+      copy the "<b>Private Key</b>", paste it into the text field below, and click the button to 'UPDATE PUBLIC KEY'.</p>
+    <form action="#">
+      <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" id="publicKeyWrapper">
+        <input class="mdl-textfield__input" type="text" id="publicKey">
+        <label class="mdl-textfield__label" for="publicKey">Application Server Public Key</label>
+      </div>
+      <p>
+      <!-- Colored raised button -->
+      <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" id="updatePublicKey">
+        UPDATE PUBLIC KEY
+      </button>
+      </p>
+    </form>
+
     <section class="subscription-details js-subscription-details is-invisible">
-      <p>Once you've subscribed your user, you'd send their subscription to your
-      server to store in a database so that when you want to send a message
-      you can lookup the subscription and send a message to it.</p>
-      <p>To simplify things for this code lab copy the following details
-      into the <a href="https://web-push-codelab.glitch.me//">Push Companion
-      Site</a> and it'll send a push message for you, using the application
-      server keys on the site - so make sure they match.</p>
-      <pre><code class="js-subscription-json"></code></pre>
+      <p>Now that you're subscribed, your subscription data is stored
+      in a database so that when you want to send a message (from the <a href="https://web-push-codelab.glitch.me/" target="_blank">Push Companion Site</a>)
+      the subscription data (object) can be retrieved, in order for messages to be sent.</p>
+      <p>The next step is to <a href="#"  id="copyToClipboardFromLink" data-clipboard-target="#json">copy</a> the Subscription Data (below), and paste it into the "<b>Subscription to Send To</b>" textarea, in <a href="https://web-push-codelab.glitch.me/" target="_blank">Push Companion Site</a>,
+        and click the button to "SEND PUSH MESSAGE".  If not "<b>Text to Send</b>" is entered, a default message will be displayed.</p>
+      <p>
+        <b>IMPORTANT:</b>
+        <ul>
+          <li>The Application Server Public Key on this site must be the same as the "<b>Public Key</b>" generated from the <a href="https://web-push-codelab.glitch.me/" target="_blank">Push Companion Site</a>.</li>
+          <li>If you receive an error when attempting to send a message from the <a href="https://web-push-codelab.glitch.me/" target="_blank">Push Companion Site</a>, click the button to "REFRESH KEYS", copy, paste, and "UPDATE PUBLIC KEY" on this site.</li>
+          <li><b>NOTE:  </b>If your notifications are not showing any badges or icons, go to <a target="_blank">chrome://flags/</a> and set <b>Enable native notifications.</b> to "Disabled".<br/>
+            <ul><li>View this <a href="https://www.addictivetips.com/ubuntu-linux-tips/turn-on-native-notifications-for-google-chrome-linux/" target="_blank">resource</a> for more information.</li></ul>
+          </li>
+        </ul>
+      </p>
+      <h4>Subscription Data</h4>
+      <div id="jsonWrapper">
+        <!-- Target -->
+        <pre><code class="js-subscription-json" id="json"></code></pre>
+        <!-- Trigger -->
+        <button class="mdl-button mdl-js-button mdl-button--accent mdl-button--fab mdl-js-ripple-effect" id="copyToClipboard" data-clipboard-target="#json">
+          <img src="images/baseline-file_copy-24px.svg" alt="Copy to clipboard">
+        </button>
+      </div>
     </section>
   </main>
 
-  <script src="scripts/main.js"></script>
+  <!-- The core Firebase JS SDK is always required and must be listed first -->
+  <script src="/__/firebase/6.0.2/firebase-app.js"></script>
 
+  <!-- TODO: Add SDKs for Firebase products that you want to use
+	   https://firebase.google.com/docs/web/setup#reserved-urls -->
+  <script src="/__/firebase/6.0.2/firebase-database.js"></script>
+  <!-- Initialize Firebase -->
+  <script src="/__/firebase/init.js"></script>
+  <!--https://github.com/zenorocha/clipboard.js.git-->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script>
+  <script src="scripts/main.js"></script>
   <script src="https://code.getmdl.io/1.2.1/material.min.js"></script>
+
 </body>
 </html>
