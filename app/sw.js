@@ -22,26 +22,9 @@
 'use strict';
 /* eslint-disable max-len */
 
-function urlB64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
 self.addEventListener('push', function(event) {
   console.log('[Service Worker] Push Received.');
-  console.log(`[Service Worker] Push had this data: "${event.data.text()}"`);
-
-  let body = event.data.text() || 'Yay it works.';
+  const body = (event.data && event.data.text()) || 'Yay it works.';
 
   const title = 'Push Codelab';
   const options = {
@@ -64,29 +47,11 @@ self.addEventListener('notificationclick', function(event) {
   event.notification.close();
 
   event.waitUntil(
-    clients.openWindow('https://developers.google.com/web/')
+    clients.openWindow(new URL('./', self.registration.scope).href)
   );
-
 });
 
-self.addEventListener('pushsubscriptionchange', function(event) {
-	console.log('[Service Worker]: \'pushsubscriptionchange\' event fired.');
-	event.waitUntil(
-		self.registration.pushManager.subscribe({ userVisibleOnly: true })
-			.then(function(subscription) {
-				console.log('[Service Worker] New subscription: ', subscription);
-				console.log('Subscribed after expiration', subscription.endpoint);
-				return fetch('register', {
-					method: 'post',
-					headers: {
-						'Content-type': 'application/json'
-					},
-					body: JSON.stringify({
-						endpoint: subscription.endpoint
-					})
-				});
-			})
-	);
-});
-
+// There is no subscription-registration backend in this repository.
+// Reconcile the browser subscription when the user next opens the app.
+// Do not renew with a different VAPID key or POST to a nonexistent endpoint.
 /* eslint-enable max-len */

@@ -30,7 +30,6 @@ function firebaseSetPublickKey() {
 	console.log('firebaseSetPublickKey, applicationServerPublicKey:  ', applicationServerPublicKey);
 	publicKeyEl.value = applicationServerPublicKey;
 	document.querySelector('.mdl-textfield').MaterialTextfield.checkDirty();
-
   });
 }
 
