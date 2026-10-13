@@ -72,8 +72,8 @@ jobs:
           process.stdout.write(result.stdout || '');
           process.stderr.write(result.stderr || '');
           if (result.status !== 0) {
-            const output = `${result.stdout || ''}\n${result.stderr || ''}`;
-            const message = output.split('\n').find(line => line.startsWith('Error:'))
+            const output = `${result.stdout || ''}\n${result.stderr || ''}`.replace(/\x1b\[[0-9;]*m/g, '');
+            const message = output.split('\n').map(line => line.trim()).find(line => line.includes('Error:'))
               || 'Database rule deployment failed. Inspect the Firebase CLI output.';
             console.log(`::error::${message.replaceAll('%', '%25').replaceAll('\r', '%0D')}`);
           }
