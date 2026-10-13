@@ -5,7 +5,7 @@
   "scripts": {
     "lint": "eslint .",
     "test": "npm run lint && node --test test/*.test.js",
-    "build": "esbuild src/main.mjs --bundle --minify --format=esm --target=es2022 --outfile=app/dist/main.js",
+    "build": "node scripts/build.mjs",
     "test:rules": "firebase emulators:exec --only database --project demo-web-push \"node --test test/rules.integration.mjs\""
   },
   "devDependencies": {

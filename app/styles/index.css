@@ -85,3 +85,17 @@ pre code {
   display: block;
   width: 100%;
 }
+/* Local controls; the app does not require a component CDN. */
+body { font-family: system-ui, sans-serif; color: #263238; line-height: 1.6; }
+h1 { font-size: clamp(1.8rem, 5vw, 3rem); line-height: 1.2; }
+h3 { font-size: 1rem; font-weight: 500; }
+header a { color: inherit; text-decoration: underline; }
+a { color: #006b78; }
+button { padding: .7rem 1rem; border: 0; border-radius: 4px; background: #006b78; color: white; font: inherit; cursor: pointer; margin: .25rem 0; }
+button:disabled { opacity: .5; cursor: default; }
+button[hidden] { display: none; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid #ff9800; outline-offset: 3px; }
+label { display: block; font-weight: 600; }
+input { width: 100%; box-sizing: border-box; padding: .7rem; border: 1px solid #607d8b; border-radius: 4px; font: inherit; }
+#copyToClipboard { position: static; }
+#status { min-height: 1.6em; }

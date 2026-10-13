@@ -8,7 +8,7 @@ const code = buildSync({
   external: ['firebase/*'], write: false
 }).outputFiles[0].text;
 
-async function loadPage() {
+async function loadPage(hostname = 'web-push-4u2c.web.app') {
   const elements = new Map();
   function element(id) {
     if (!elements.has(id)) elements.set(id, {
@@ -18,6 +18,7 @@ async function loadPage() {
     });
     return elements.get(id);
   }
+  let initializedConfig;
   const writes = [];
   const deletions = [];
   let callback;
@@ -35,7 +36,7 @@ async function loadPage() {
     }
   } };
   const modules = {
-    'firebase/app': { initializeApp: () => ({}) },
+    'firebase/app': { initializeApp: config => { initializedConfig = config; return {}; } },
     'firebase/auth': {
       getAuth: () => auth, GoogleAuthProvider: class {},
       onAuthStateChanged(_auth, handler) { callback = handler; },
@@ -50,6 +51,7 @@ async function loadPage() {
   };
   vm.runInNewContext(code, {
     require: name => modules[name], console, crypto, TextEncoder, atob, btoa,
+    location: { hostname },
     window: { PushManager: {}, Notification: { permission: 'granted' } },
     Notification: { permission: 'granted' },
     document: { getElementById: element, querySelector: element },
@@ -60,7 +62,7 @@ async function loadPage() {
   });
   await callback(null);
   await new Promise(resolve => setImmediate(resolve));
-  return { element, writes, deletions, auth, callback };
+  return { element, writes, deletions, auth, callback, initializedConfig };
 }
 
 test('signed-out initialization makes no subscription writes; Google sign-in enables controls', async () => {
@@ -88,4 +90,11 @@ test('subscription writes are owned by signed-in user and sign-out deletes only 
   assert.deepEqual(page.deletions, [page.writes[0].path]);
   assert.equal(page.auth.currentUser, null);
   assert.equal(page.element('json').textContent, '');
+});
+
+test('Firebase initializes with the domain actually opened in the browser', async () => {
+  for (const domain of ['web-push-4u2c.web.app', 'web-push-4u2c.firebaseapp.com']) {
+    const page = await loadPage(domain);
+    assert.equal(page.initializedConfig.authDomain, domain);
+  }
 });

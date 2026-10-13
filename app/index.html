@@ -7,10 +7,8 @@
 
   <title>Push Codelab</title>
 
-  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-  <link rel="stylesheet" href="https://code.getmdl.io/1.2.1/material.indigo-pink.min.css">
-  <script defer src="https://code.getmdl.io/1.2.1/material.min.js"></script>
   <link rel="stylesheet" href="styles/index.css">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
 
 <body>
@@ -27,7 +25,7 @@
     <p id="status" role="status" aria-live="polite"></p>
     <p>Welcome to the push messaging "enhanced" codelab. Push the button below to enable/disable push messages.</p>
     <p>
-      <button disabled class="js-push-btn mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
+      <button disabled class="js-push-btn ">
         Enable Push Messaging
       </button>
     </p>
@@ -36,13 +34,13 @@
     <p id="note">Enter your push server's VAPID <b>public key</b> below to subscribe.
       The original Glitch companion site is no longer hosted. A replacement message sender is not yet available.</p>
     <form id="keyForm">
-      <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" id="publicKeyWrapper">
-        <input class="mdl-textfield__input" type="text" id="publicKey" required autocomplete="off" disabled>
-        <label class="mdl-textfield__label" for="publicKey">Application Server Public Key</label>
+      <div id="publicKeyWrapper">
+        <input class="__input" type="text" id="publicKey" required autocomplete="off" disabled>
+        <label class="__label" for="publicKey">Application Server Public Key</label>
       </div>
       <p>
       <!-- Colored raised button -->
-      <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" id="updatePublicKey" type="submit" disabled>
+      <button id="updatePublicKey" type="submit" disabled>
         UPDATE PUBLIC KEY
       </button>
       </p>
@@ -58,7 +56,7 @@
         <!-- Target -->
         <pre><code class="js-subscription-json" id="json"></code></pre>
         <!-- Trigger -->
-        <button class="mdl-button mdl-js-button mdl-button--accent mdl-button--fab mdl-js-ripple-effect" id="copyToClipboard" data-clipboard-target="#json">
+        <button id="copyToClipboard" data-clipboard-target="#json">
           Copy
         </button>
       </div>

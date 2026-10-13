@@ -13,12 +13,12 @@ npm ci
 npm test
 npm run build
 npm run test:rules
-python3 -m http.server 8000 --bind 127.0.0.1 --directory .
+python3 -m http.server 8000 --bind 127.0.0.1 --directory app/dist
 ```
 
-The static server exposes `/app/` and the examples under `/completed/`. Build the app first. The modular Firebase SDK is bundled locally, so reserved Hosting SDK routes are no longer required. Firebase web configuration is in `src/firebase-config.mjs`. Local sign-in requires an authorized localhost domain and a development API key configuration; never use live credentials for emulator tests.
+The static server exposes the built app at `/`. Build the app first; Hosting also serves `app/dist`. Historical examples remain under `completed/` in the repository. The modular Firebase SDK is bundled locally, so reserved Hosting SDK routes are no longer required. Firebase web configuration is in `src/firebase-config.mjs`. Local sign-in requires an authorized localhost domain and a development API key configuration; never use live credentials for emulator tests.
 
-`npm test` runs ESLint and eight Node tests covering notification handling, Google sign-in UI, per-owner subscription paths, form submission, sign-out cleanup, and VAPID key conversion. `npm run test:rules` uses a demo-project database emulator to check owner access, cross-user denial, legacy-path denial, record validation, and multiple devices. These checks do not exercise live Google authentication or push delivery. ESLint uses a flat configuration in `eslint.config.mjs`; dependency versions are pinned in `package-lock.json`.
+`npm test` runs ESLint and Node tests covering notification handling, Google sign-in UI, per-owner subscription paths, form submission, sign-out cleanup, and VAPID key conversion. `npm run test:rules` uses a demo-project database emulator to check owner access, cross-user denial, legacy-path denial, record validation, and multiple devices. These checks do not exercise live Google authentication or push delivery. ESLint uses a flat configuration in `eslint.config.mjs`; dependency versions are pinned in `package-lock.json`.
 
 The frontend remains plain JavaScript. Its current size does not justify a React dependency or build pipeline.
 
@@ -36,7 +36,7 @@ This is a legacy demo, not yet a complete authenticated PWA:
 
 - Subscriptions are stored at `/subscriptions/{uid}/{endpointHash}`. Rules deny unauthenticated and cross-user access. Deploy the new rules before using this client; the workflow enforces that order. Legacy records may need administrator cleanup after a backup.
 - Google sign-in is integrated; anonymous provider enablement does not automatically sign users in. Sign-out unsubscribes this browser and deletes its owned record. Sign-in alone does not grant sender privileges. Keep both hosting domains authorized. Authentication uses `web.app` by default and `firebaseapp.com` only when that domain is opened intentionally. In the Google OAuth web client, authorize both redirect URIs: `https://web-push-4u2c.web.app/__/auth/handler` and `https://web-push-4u2c.firebaseapp.com/__/auth/handler`. Firebase authorized domains and Google OAuth redirect URIs are separate settings.
-- Firebase SDK 13 is bundled with esbuild, and copying uses the native Clipboard API. Material Design Lite remains a legacy styling dependency.
+- Firebase SDK 13 is bundled with esbuild, and copying uses the native Clipboard API. All styles and icons are hosted locally; no Material Design Lite CDN is required. JavaScript and stylesheet filenames are versioned per build to avoid stale assets.
 - The manifest, install experience, offline strategy, and message-sending backend remain to be implemented.
 - Glitch project hosting has ended; the active app no longer links to its companion site. The original companion-site links and embedded keys in `completed/` are historical examples. Supply your own application-server public key; the VAPID private key belongs exclusively on the backend.
 - Automatic subscription renewal needs an authenticated backend. The app checks the browser subscription when opened; it does not post renewals to a placeholder endpoint.
