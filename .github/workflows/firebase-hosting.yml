@@ -33,15 +33,15 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Check deployment credential
         env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_WEB_PUSH_4U2C }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "::error::Configure repository secret FIREBASE_SERVICE_ACCOUNT_WEB_PUSH_4U2C with the Firebase Hosting deployment service account credential."
+            echo "::error::Configure repository secret FIREBASE_SERVICE_ACCOUNT with the Firebase Hosting deployment service account credential."
             exit 1
           fi
       - name: Deploy Hosting only
         uses: FirebaseExtended/action-hosting-deploy@7c850a480ce753f4f06f010801fc5a43787740bb # v0
         with:
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_WEB_PUSH_4U2C }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: web-push-4u2c
           channelId: live
