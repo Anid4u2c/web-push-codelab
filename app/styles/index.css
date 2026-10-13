@@ -99,3 +99,8 @@ label { display: block; font-weight: 600; }
 input { width: 100%; box-sizing: border-box; padding: .7rem; border: 1px solid #607d8b; border-radius: 4px; font: inherit; }
 #copyToClipboard { position: static; }
 #status { min-height: 1.6em; }
+
+#diagnostics { margin: 2rem 0; padding: 1rem; border: 1px solid #cfd8dc; border-radius: 4px; }
+#diagnostics summary { cursor: pointer; font-weight: 600; }
+#diagnostics pre { font-size: .85rem; }
+#notificationHelp { padding: .75rem; background: #fff3cd; border-radius: 4px; }

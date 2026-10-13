@@ -30,6 +30,12 @@ The repository secret `FIREBASE_SERVICE_ACCOUNT` supplies the deployment credent
 
 CI runs the unit tests, build, and database emulator tests before deployment. The deploy job writes its credential to a temporary restricted file and removes it after use. Backend functions are not deployed. Existing legacy database data is not deleted, but the new rules make global `/subscription/` and `/publicKey/` records inaccessible to clients.
 
+## Diagnostics
+
+Expand **Diagnostics** on the page for the active site/auth domain, authentication state, browser support, notification permission, service-worker state, and subscription presence. Copy or clear the latest 20 app events; they stay in memory for this tab and use the browser's local time. Diagnostics exclude account identifiers, credentials and subscription contents. They summarize app events rather than intercepting the browser console.
+
+Google popup authentication can emit COOP `window.closed` warnings while Firebase polls for cancellation. A signed-in account indicates login completed despite those warnings. If notifications are denied, allow them in the browser's site permissions and reload.
+
 ## Current limitations
 
 This is a legacy demo, not yet a complete authenticated PWA:

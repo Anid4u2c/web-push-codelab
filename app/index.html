@@ -22,6 +22,7 @@
     <p id="account">Checking sign-in…</p>
     <button id="signIn" type="button" disabled>Sign in with Google</button>
     <button id="signOut" type="button" hidden>Sign out and unsubscribe</button>
+    <p id="notificationHelp" hidden>Notifications are blocked for this site. Open the browser’s site permissions beside the address bar, allow notifications, then reload this page.</p>
     <p id="status" role="status" aria-live="polite"></p>
     <p>Welcome to the push messaging "enhanced" codelab. Push the button below to enable/disable push messages.</p>
     <p>
@@ -61,6 +62,14 @@
         </button>
       </div>
     </section>
+    <details id="diagnostics">
+      <summary>Diagnostics</summary>
+      <p>Local status and recent app events. Tokens, account details, keys, and subscription endpoints are excluded.</p>
+      <pre id="diagnosticsOutput"></pre>
+      <button type="button" id="copyDiagnostics">Copy diagnostics</button>
+      <button type="button" id="clearDiagnostics">Clear events</button>
+      <p>Google’s popup can trigger COOP warnings while Firebase checks whether it closed. If you are signed in, those warnings do not indicate a failed login.</p>
+    </details>
   </main>
 
   <script type="module" src="dist/main.js"></script>

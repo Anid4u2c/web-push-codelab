@@ -1,12 +1,14 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { getDatabase, ref, remove, set } from 'firebase/database';
+import { createDiagnostics } from './diagnostics.mjs';
 import { firebaseConfig } from './firebase-config.mjs';
 import { decodePublicKey, encodePublicKey, subscriptionId, subscriptionPath } from './subscriptions.mjs';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const database = getDatabase(app);
+const diagnostics = createDiagnostics(document);
 const signInButton = document.getElementById('signIn');
 const signOutButton = document.getElementById('signOut');
 const pushButton = document.querySelector('.js-push-btn');
@@ -26,6 +28,17 @@ let syncing = 0;
 function render() {
   const user = auth.currentUser;
   const pending = busy || syncing > 0;
+  diagnostics.update({
+    'Site': globalThis.location?.origin || 'Local test',
+    'Auth domain': firebaseConfig.authDomain,
+    'Signed in': user ? 'Yes' : 'No',
+    'Secure context': globalThis.isSecureContext ? 'Yes' : 'No',
+    'Push supported': 'serviceWorker' in navigator && 'PushManager' in window ? 'Yes' : 'No',
+    'Notification permission': window.Notification?.permission || 'Unsupported',
+    'Service worker': registration?.active?.state || (registration ? 'Registered' : 'Not registered'),
+    'Subscription': subscription ? 'Present in browser' : 'None'
+  });
+  document.getElementById('notificationHelp').hidden = window.Notification?.permission !== 'denied';
   account.textContent = user ? `Signed in as ${user.displayName || user.email || 'Google user'}` : 'Sign in to manage your subscription.';
   signInButton.hidden = !!user;
   signOutButton.hidden = !user;
@@ -40,6 +53,7 @@ function render() {
 }
 
 function showError(error) {
+  diagnostics.record('Error', error);
   const messages = {
     'auth/unauthorized-domain': 'This domain is not authorized for Google sign-in in Firebase.',
     'auth/popup-blocked': 'Allow the sign-in popup and try again.',
@@ -49,13 +63,15 @@ function showError(error) {
   status.textContent = messages[error.code] || error.message || 'The operation failed. Please try again.';
 }
 
-async function perform(action) {
+async function perform(action, label = 'Operation') {
   if (busy || syncing > 0) return;
   busy = true;
   status.textContent = '';
+  diagnostics.record(`${label} started`);
   render();
   try {
     await action();
+    diagnostics.record(`${label} completed`);
   } catch (error) {
     showError(error);
   } finally {
@@ -74,7 +90,10 @@ async function recordFor(current) {
 
 async function saveCurrentSubscription() {
   const current = subscription;
-  if (current) await set(await recordFor(current), current.toJSON());
+  if (current) {
+    await set(await recordFor(current), current.toJSON());
+    diagnostics.record('Subscription saved');
+  }
 }
 
 async function unsubscribe() {
@@ -107,7 +126,7 @@ async function subscribe() {
   status.textContent = 'Subscription saved to your account. A message sender is still required.';
 }
 
-signInButton.addEventListener('click', () => perform(() => signInWithPopup(auth, new GoogleAuthProvider())));
+signInButton.addEventListener('click', () => perform(() => signInWithPopup(auth, new GoogleAuthProvider()), 'Google sign-in'));
 signOutButton.addEventListener('click', () => perform(async () => {
   await unsubscribe();
   await signOut(auth);
@@ -151,6 +170,7 @@ async function reconcile(user) {
 
 onAuthStateChanged(auth, async user => {
   authReady = true;
+  diagnostics.record(user ? 'Auth state: signed in' : 'Auth state: signed out');
   subscription = null;
   render();
   if (user && registration) await reconcile(user);
@@ -164,6 +184,7 @@ async function start() {
   try {
     registration = await navigator.serviceWorker.register('sw.js');
     await navigator.serviceWorker.ready;
+    diagnostics.record('Service worker ready');
     if (auth.currentUser) {
       await reconcile(auth.currentUser);
     }
@@ -173,6 +194,12 @@ async function start() {
   render();
 }
 
+document.getElementById('clearDiagnostics').addEventListener('click', () => diagnostics.clear());
+document.getElementById('copyDiagnostics').addEventListener('click', () => perform(async () => {
+  await navigator.clipboard.writeText(diagnostics.text());
+  status.textContent = 'Diagnostics copied.';
+}, 'Copy diagnostics'));
+
 // Unsupported browsers may not expose Notification at all.
 if (!('Notification' in window)) {
   status.textContent = 'This browser does not support notifications.';
@@ -180,3 +207,5 @@ if (!('Notification' in window)) {
 } else {
   start();
 }
+
+render();
