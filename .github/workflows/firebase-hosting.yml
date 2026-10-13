@@ -36,8 +36,6 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
     needs: validate
     runs-on: ubuntu-latest
-    env:
-      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -48,6 +46,7 @@ jobs:
       - run: npm run build
       - name: Check deployment credential
         env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           node <<'NODE'
@@ -61,6 +60,8 @@ jobs:
           fs.writeFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, raw, { mode: 0o600 });
           NODE
       - name: Deploy database rules before Hosting
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
         run: npx --no-install firebase deploy --only database --project web-push-4u2c --non-interactive
       - name: Deploy Hosting only
         uses: FirebaseExtended/action-hosting-deploy@7c850a480ce753f4f06f010801fc5a43787740bb # v0
@@ -70,4 +71,6 @@ jobs:
           channelId: live
       - name: Remove deployment credential
         if: always()
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
         run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
