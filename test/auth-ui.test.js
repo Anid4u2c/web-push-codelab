@@ -19,6 +19,9 @@ async function loadPage(hostname = 'web-push-4u2c.web.app') {
     return elements.get(id);
   }
   let initializedConfig;
+  const requests = [];
+  const bytes = new Uint8Array(65); bytes[0] = 4;
+  const publicKey = Buffer.from(bytes).toString('base64url');
   const writes = [];
   const deletions = [];
   let callback;
@@ -26,10 +29,10 @@ async function loadPage(hostname = 'web-push-4u2c.web.app') {
   const auth = { currentUser: null };
   const registration = { pushManager: {
     async getSubscription() { return browserSubscription; },
-    async subscribe() {
+    async subscribe(options) {
       browserSubscription = {
-        endpoint: 'https://push.example/device', options: {},
-        toJSON: () => ({ endpoint: 'https://push.example/device', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } }),
+        endpoint: 'https://fcm.googleapis.com/fcm/send/test-device', options,
+        toJSON: () => ({ endpoint: 'https://fcm.googleapis.com/fcm/send/test-device', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } }),
         async unsubscribe() { browserSubscription = null; return true; }
       };
       return browserSubscription;
@@ -40,7 +43,7 @@ async function loadPage(hostname = 'web-push-4u2c.web.app') {
     'firebase/auth': {
       getAuth: () => auth, GoogleAuthProvider: class {},
       onAuthStateChanged(_auth, handler) { callback = handler; },
-      async signInWithPopup() { auth.currentUser = { uid: 'alice', displayName: 'Alice' }; await callback(auth.currentUser); },
+      async signInWithPopup() { auth.currentUser = { uid: 'alice', displayName: 'Alice', getIdToken: async () => 'test-id-token' }; await callback(auth.currentUser); },
       async signOut() { auth.currentUser = null; await callback(null); }
     },
     'firebase/database': {
@@ -52,6 +55,7 @@ async function loadPage(hostname = 'web-push-4u2c.web.app') {
   vm.runInNewContext(code, {
     require: name => modules[name], console, crypto, TextEncoder, atob, btoa,
     location: { hostname },
+    fetch: async (url, options) => { requests.push({ url, options }); return { ok: true, json: async () => url.endsWith('/config') ? { publicKey } : { sent: true } }; },
     window: { PushManager: {}, Notification: { permission: 'granted' } },
     Notification: { permission: 'granted' },
     document: { getElementById: element, querySelector: element },
@@ -62,7 +66,7 @@ async function loadPage(hostname = 'web-push-4u2c.web.app') {
   });
   await callback(null);
   await new Promise(resolve => setImmediate(resolve));
-  return { element, writes, deletions, auth, callback, initializedConfig };
+  return { element, writes, deletions, auth, callback, initializedConfig, requests };
 }
 
 test('signed-out initialization makes no subscription writes; Google sign-in enables controls', async () => {
@@ -77,13 +81,7 @@ test('signed-out initialization makes no subscription writes; Google sign-in ena
 test('subscription writes are owned by signed-in user and sign-out deletes only that record', async () => {
   const page = await loadPage();
   await page.element('signIn').handlers.click();
-  const bytes = new Uint8Array(65); bytes[0] = 4;
-  page.element('publicKey').value = Buffer.from(bytes).toString('base64url');
-  let prevented = false;
-  await page.element('keyForm').handlers.submit({ preventDefault() { prevented = true; } });
-  await new Promise(resolve => setImmediate(resolve));
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(prevented, true);
+  await page.element('.js-push-btn').handlers.click();
   assert.equal(page.writes.length, 1);
   assert.match(page.writes[0].path, /^subscriptions\/alice\/[a-f0-9]{64}$/);
   await page.element('signOut').handlers.click();
@@ -97,4 +95,21 @@ test('Firebase initializes with the domain actually opened in the browser', asyn
     const page = await loadPage(domain);
     assert.equal(page.initializedConfig.authDomain, domain);
   }
+});
+
+test('public key loads automatically and self-test sends only this device ID', async () => {
+  const page = await loadPage();
+  assert.equal(page.requests[0].url, '/api/push/config');
+  assert.equal(page.element('sendTest').disabled, true);
+  await page.element('signIn').handlers.click();
+  await page.element('.js-push-btn').handlers.click();
+  assert.equal(page.element('sendTest').disabled, false);
+  await page.element('sendTest').handlers.click();
+  const request = page.requests.at(-1);
+  assert.equal(request.url, '/api/push/test');
+  assert.equal(request.options.method, 'POST');
+  assert.equal(request.options.headers.Authorization, 'Bearer test-id-token');
+  const body = JSON.parse(request.options.body);
+  assert.deepEqual(Object.keys(body), ['subscriptionId']);
+  assert.match(body.subscriptionId, /^[a-f0-9]{64}$/);
 });

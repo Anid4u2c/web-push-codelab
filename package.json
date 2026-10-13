@@ -4,7 +4,7 @@
   "description": "Push notifications codelab.",
   "scripts": {
     "lint": "eslint .",
-    "test": "npm run lint && node --test test/*.test.js",
+    "test": "npm run lint && node --test test/*.test.js functions/test/*.test.cjs",
     "build": "node scripts/build.mjs",
     "test:rules": "firebase emulators:exec --only database --project demo-web-push \"node --test test/rules.integration.mjs\""
   },
@@ -15,7 +15,8 @@
     "esbuild": "0.28.2",
     "eslint": "10.12.0",
     "firebase-tools": "15.33.0",
-    "globals": "17.13.0"
+    "globals": "17.13.0",
+    "google-auth-library": "11.3.0"
   },
   "repository": {
     "type": "git",

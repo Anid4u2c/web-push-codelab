@@ -10,29 +10,48 @@ Use Node.js 24 or newer, Python 3 for the static server, and Java 21 for databas
 
 ```sh
 npm ci
+npm ci --prefix functions
 npm test
 npm run build
 npm run test:rules
 python3 -m http.server 8000 --bind 127.0.0.1 --directory app/dist
 ```
 
-The static server exposes the built app at `/`. Build the app first; Hosting also serves `app/dist`. Historical examples remain under `completed/` in the repository. The modular Firebase SDK is bundled locally, so reserved Hosting SDK routes are no longer required. Firebase web configuration is in `src/firebase-config.mjs`. Local sign-in requires an authorized localhost domain and a development API key configuration; never use live credentials for emulator tests.
+The static server exposes the built app at `/`. Build the app first; Hosting also serves `app/dist`. Historical examples remain under `completed/` in the repository. The modular Firebase SDK is bundled locally, so reserved Hosting SDK routes are no longer required. Firebase web configuration is in `src/firebase-config.mjs`. The static server cannot serve `/api/push/config` or `/api/push/test`; use the deployed site for the complete flow. Local sign-in requires an authorized localhost domain and a development API key configuration; never use live credentials for emulator tests.
 
 `npm test` runs ESLint and Node tests covering notification handling, Google sign-in UI, per-owner subscription paths, form submission, sign-out cleanup, and VAPID key conversion. `npm run test:rules` uses a demo-project database emulator to check owner access, cross-user denial, legacy-path denial, record validation, and multiple devices. These checks do not exercise live Google authentication or push delivery. ESLint uses a flat configuration in `eslint.config.mjs`; dependency versions are pinned in `package-lock.json`.
 
 The frontend remains plain JavaScript. Its current size does not justify a React dependency or build pipeline.
 
+## Sending a test notification
+
+Sign in with Google, choose **Enable Push Messaging**, accept the browser permission request, then choose **Send me a test notification**. The app fetches its public key automatically; there is no key to paste. A successful send means the push provider accepted the encrypted message, not that the operating system displayed it.
+
+The backend accepts only the current user's stored device ID and sends a fixed demo message. It validates Google ID tokens and push-provider destinations, allows one test per user every 30 seconds, and caps the demo at 500 sends per UTC day. Expired subscriptions are removed. The private VAPID key is held in the `WEB_PUSH_VAPID` Secret Manager secret. The setup job creates a pair only if no version exists and verifies that an existing pair matches; it never prints the pair or rotates it on deployment.
+
+If an existing browser subscription used an older manually supplied key, choose **Update push subscription** to replace it. Managed browser permissions may still block notifications. On iOS/iPadOS, Web Push requires a supported Home Screen web app; the installable PWA manifest remains a follow-up.
+
 ## Deployment
 
-GitHub Actions runs tests on pull requests and pushes to `master`. A successful push to `master` deploys **database rules first, then Hosting** to project `web-push-4u2c`. The release stops if rules cannot be deployed. The workflow can also be started manually on `master`.
+GitHub Actions runs tests on pull requests and pushes to `master`. A successful push to `master` deploys **the push backend and database rules before Hosting** to project `web-push-4u2c`. The release stops if backend setup, functions, or rules cannot be deployed. The workflow can also be started manually on `master`.
 
 The repository secret `FIREBASE_SERVICE_ACCOUNT` supplies the deployment credential for `github-deploy@web-push-4u2c.iam.gserviceaccount.com`. Keep the credential in GitHub Actions secrets; never commit its JSON key. The deployment account has Firebase Hosting Admin; it also needs **Firebase Realtime Database Admin** (`roles/firebasedatabase.admin`) to publish rules. Actions are pinned to commit IDs, and pull requests cannot run the production deployment job.
 
-CI runs the unit tests, build, and database emulator tests before deployment. The deploy job writes its credential to a temporary restricted file and removes it after use. Backend functions are not deployed. Existing legacy database data is not deleted, but the new rules make global `/subscription/` and `/publicKey/` records inaccessible to clients.
+CI runs the unit tests, build, and database emulator tests before deployment. The deploy job writes its credential to a temporary restricted file and removes it after use. Functions deploy from the `functions/` codebase before the app is published. Existing legacy database data is not deleted, but the new rules make global `/subscription/` and `/publicKey/` records inaccessible to clients.
+
+### One-time backend prerequisites
+
+- Firebase project `web-push-4u2c` must support Cloud Functions deployment (Blaze billing) with Cloud Functions, Cloud Build, Artifact Registry, Cloud Run, IAM and Secret Manager APIs enabled.
+- Create runtime service account `web-push-runtime@web-push-4u2c.iam.gserviceaccount.com` and grant it Firebase Realtime Database Admin. It is separate from the deployment identity and does not need Hosting or Functions deployment roles.
+- Grant `github-deploy@web-push-4u2c.iam.gserviceaccount.com` Service Account User on that runtime account. Function deployment also requires Cloud Functions deployment permissions and Cloud Run permissions to configure public invokers (for example Cloud Functions Developer and Cloud Run Admin), plus the existing Hosting/Database roles.
+- The setup job needs Secret Manager permissions to create and manage `WEB_PUSH_VAPID`, read its version for validation, and grant the runtime account Secret Accessor on that secret. Secret Manager Admin can provision it; once created, scope that role to this secret rather than all project secrets. Do not grant broad Owner or Editor access to the deployment account.
+- Keep using the existing `FIREBASE_SERVICE_ACCOUNT` GitHub secret. No private key needs to be pasted into the browser, chat, repository or cloud development environment.
+
+The setup script checks the runtime identity before making changes. If permissions or prerequisites are missing, the workflow reports the specific setup error and keeps the previously deployed site. Secret creation, function deployment and real push delivery are not established by passing unit tests.
 
 ## Diagnostics
 
-Expand **Diagnostics** on the page for the active site/auth domain, authentication state, browser support, notification permission, service-worker state, and subscription presence. Copy or clear the latest 20 app events; they stay in memory for this tab and use the browser's local time. Diagnostics exclude account identifiers, credentials and subscription contents. They summarize app events rather than intercepting the browser console.
+Expand **Diagnostics** on the page for the active site/auth domain, authentication state, browser support, notification permission, service-worker state, backend key availability, and subscription presence. Copy or clear the latest 20 app events; they stay in memory for this tab and use the browser's local time. Diagnostics exclude account identifiers, credentials and subscription contents. They summarize app events rather than intercepting the browser console.
 
 Google popup authentication can emit COOP `window.closed` warnings while Firebase polls for cancellation. A signed-in account indicates login completed despite those warnings. If notifications are denied, allow them in the browser's site permissions and reload.
 
@@ -41,16 +60,16 @@ Google popup authentication can emit COOP `window.closed` warnings while Firebas
 This is a legacy demo, not yet a complete authenticated PWA:
 
 - Subscriptions are stored at `/subscriptions/{uid}/{endpointHash}`. Rules deny unauthenticated and cross-user access. Deploy the new rules before using this client; the workflow enforces that order. Legacy records may need administrator cleanup after a backup.
-- Google sign-in is integrated; anonymous provider enablement does not automatically sign users in. Sign-out unsubscribes this browser and deletes its owned record. Sign-in alone does not grant sender privileges. Keep both hosting domains authorized. Authentication uses `web.app` by default and `firebaseapp.com` only when that domain is opened intentionally. In the Google OAuth web client, authorize both redirect URIs: `https://web-push-4u2c.web.app/__/auth/handler` and `https://web-push-4u2c.firebaseapp.com/__/auth/handler`. Firebase authorized domains and Google OAuth redirect URIs are separate settings.
+- Google sign-in is integrated; anonymous provider enablement does not automatically sign users in. Sign-out unsubscribes this browser and deletes its owned record. Google sign-in allows self-tests on that user’s devices only. Keep both hosting domains authorized. Authentication uses `web.app` by default and `firebaseapp.com` only when that domain is opened intentionally. In the Google OAuth web client, authorize both redirect URIs: `https://web-push-4u2c.web.app/__/auth/handler` and `https://web-push-4u2c.firebaseapp.com/__/auth/handler`. Firebase authorized domains and Google OAuth redirect URIs are separate settings.
 - Firebase SDK 13 is bundled with esbuild, and copying uses the native Clipboard API. All styles and icons are hosted locally; no Material Design Lite CDN is required. JavaScript and stylesheet filenames are versioned per build to avoid stale assets.
-- The manifest, install experience, offline strategy, and message-sending backend remain to be implemented.
-- Glitch project hosting has ended; the active app no longer links to its companion site. The original companion-site links and embedded keys in `completed/` are historical examples. Supply your own application-server public key; the VAPID private key belongs exclusively on the backend.
+- The manifest, install experience, and offline strategy remain to be implemented. The sender supports self-tests only; there is no broadcast or arbitrary-message endpoint.
+- Glitch project hosting has ended; the active app no longer links to its companion site. The original companion-site links and embedded keys in `completed/` are historical examples. The live app gets its public key from the backend; the private key is never returned to the browser.
 - Automatic subscription renewal needs an authenticated backend. The app checks the browser subscription when opened; it does not post renewals to a placeholder endpoint.
 
 ## Next steps
 
 1. Verify the release's Google sign-in on both authorized Hosting domains and check the live rules. Test with two distinct accounts and multiple browser profiles.
-2. Add a Cloud Functions sender using standards-based Web Push and stable VAPID credentials. Authorize senders server-side, validate payloads and push endpoints, limit sends, and remove expired subscriptions. Firebase Cloud Messaging is an alternative with a different registration flow.
+2. Verify real self-test delivery on multiple devices after backend deployment. Add App Check and stronger abuse controls before widening the public audience.
 3. Add a web manifest, install guidance, and explicit permission controls. Define notification action behavior and unsupported-browser states.
 4. Test real delivery, unsubscribe, denied permissions, multiple users, and both Hosting origins. Include supported Android browsers and installed iOS/iPadOS Home Screen web apps.
 

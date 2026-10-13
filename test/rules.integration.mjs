@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { after, before, beforeEach, test } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { get, ref, remove, set } from 'firebase/database';
+import push from '../functions/push.cjs';
+import { get, ref, remove, set, runTransaction } from 'firebase/database';
 
 let environment;
 const id = 'a'.repeat(64);
@@ -47,7 +48,7 @@ test('anonymous and other accounts cannot access subscriptions', async () => {
 });
 
 test('global legacy records and unrelated paths are denied', async () => {
-  for (const legacy of ['subscription', 'publicKey', 'other']) {
+  for (const legacy of ['subscription', 'publicKey', 'other', '_pushLimits']) {
     await assertFails(set(ref(database('alice'), legacy), { key: 'value' }));
     await assertFails(get(ref(database('alice'), legacy)));
   }
@@ -78,4 +79,20 @@ test('owner can store multiple devices without replacing another device', async 
   await assertSucceeds(set(ref(db, second), { ...record, endpoint: 'https://push.example/device-two' }));
   await assertSucceeds(remove(ref(db, second)));
   assert.equal((await get(ref(db, path))).val().endpoint, record.endpoint);
+});
+
+test('quota transactions allow only one concurrent send per user and honor the global cap', async () => {
+  await environment.withSecurityRulesDisabled(async context => {
+    const db = context.database();
+    const transaction = (path, update) => runTransaction(ref(db, path), update, { applyLocally: false });
+    const now = Date.UTC(2026, 0, 1);
+    const results = await Promise.all([
+      push.claimQuota(transaction, 'alice', now),
+      push.claimQuota(transaction, 'alice', now)
+    ]);
+    assert.equal(results.filter(Boolean).length, 1);
+    assert.equal((await get(ref(db, '_pushLimits/global'))).val().count, 1);
+    await set(ref(db, '_pushLimits/global'), { day: '2026-01-01', count: 500 });
+    assert.equal(await push.claimQuota(transaction, 'bob', now), false);
+  });
 });

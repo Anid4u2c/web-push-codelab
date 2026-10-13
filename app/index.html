@@ -30,26 +30,12 @@
         Enable Push Messaging
       </button>
     </p>
-    <!-- Textfield with Floating Label -->
-
-    <p id="note">Enter your push server's VAPID <b>public key</b> below to subscribe.
-      The original Glitch companion site is no longer hosted. A replacement message sender is not yet available.</p>
-    <form id="keyForm">
-      <div id="publicKeyWrapper">
-        <input class="__input" type="text" id="publicKey" required autocomplete="off" disabled>
-        <label class="__label" for="publicKey">Application Server Public Key</label>
-      </div>
-      <p>
-      <!-- Colored raised button -->
-      <button id="updatePublicKey" type="submit" disabled>
-        UPDATE PUBLIC KEY
-      </button>
-      </p>
-    </form>
+    <p>The public key loads automatically from the push backend. Sign in, enable push, then send a test notification to this device.</p>
+    <button id="retryPushSetup" type="button">Retry push setup</button>
+    <button id="sendTest" type="button" disabled>Send me a test notification</button>
 
     <section class="subscription-details js-subscription-details is-invisible">
-      <p>Your browser is subscribed. To send a message, your application server needs this
-        subscription and the private VAPID key matching the public key used above.</p>
+      <p>Your browser is subscribed. The backend keeps its private signing key in secret storage.</p>
       <p>Use the copy button for your sender. Subscription details are private; do not publish them.</p>
       <p>Notification icons and actions depend on browser and operating-system support.</p>
       <h4>Subscription Data</h4>

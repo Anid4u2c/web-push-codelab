@@ -37,6 +37,22 @@
           }
         ]
       }
+    ],
+    "rewrites": [
+      {
+        "source": "/api/push/config",
+        "function": {
+          "functionId": "pushConfig",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/push/test",
+        "function": {
+          "functionId": "testPush",
+          "region": "us-central1"
+        }
+      }
     ]
   },
   "emulators": {
@@ -46,5 +62,20 @@
     "ui": {
       "enabled": false
     }
-  }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "push",
+      "runtime": "nodejs24",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "test",
+        "*.log",
+        ".secret.local",
+        ".runtimeconfig.json"
+      ]
+    }
+  ]
 }

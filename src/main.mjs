@@ -3,6 +3,7 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signO
 import { getDatabase, ref, remove, set } from 'firebase/database';
 import { createDiagnostics } from './diagnostics.mjs';
 import { firebaseConfig } from './firebase-config.mjs';
+import { loadPushPublicKey, sendMyTestNotification } from './push-api.mjs';
 import { decodePublicKey, encodePublicKey, subscriptionId, subscriptionPath } from './subscriptions.mjs';
 
 const app = initializeApp(firebaseConfig);
@@ -12,18 +13,23 @@ const diagnostics = createDiagnostics(document);
 const signInButton = document.getElementById('signIn');
 const signOutButton = document.getElementById('signOut');
 const pushButton = document.querySelector('.js-push-btn');
-const keyForm = document.getElementById('keyForm');
-const keyInput = document.getElementById('publicKey');
-const updateButton = document.getElementById('updatePublicKey');
+const sendButton = document.getElementById('sendTest');
+const retrySetupButton = document.getElementById('retryPushSetup');
 const status = document.getElementById('status');
 const account = document.getElementById('account');
 const details = document.querySelector('.js-subscription-details');
 const subscriptionJson = document.getElementById('json');
 let registration;
 let subscription = null;
+let serverPublicKey = '';
 let busy = false;
 let authReady = false;
 let syncing = 0;
+
+function currentKeyMatches() {
+  const existing = subscription?.options.applicationServerKey;
+  return !!existing && encodePublicKey(existing) === serverPublicKey;
+}
 
 function render() {
   const user = auth.currentUser;
@@ -36,6 +42,7 @@ function render() {
     'Push supported': 'serviceWorker' in navigator && 'PushManager' in window ? 'Yes' : 'No',
     'Notification permission': window.Notification?.permission || 'Unsupported',
     'Service worker': registration?.active?.state || (registration ? 'Registered' : 'Not registered'),
+    'Push backend': serverPublicKey ? 'Public key loaded' : 'Not ready',
     'Subscription': subscription ? 'Present in browser' : 'None'
   });
   document.getElementById('notificationHelp').hidden = window.Notification?.permission !== 'denied';
@@ -44,10 +51,11 @@ function render() {
   signOutButton.hidden = !user;
   signInButton.disabled = pending || !authReady;
   signOutButton.disabled = pending;
-  pushButton.disabled = pending || !user || !registration || window.Notification?.permission === 'denied';
-  pushButton.textContent = window.Notification?.permission === 'denied' ? 'Notifications blocked' : subscription ? 'Disable Push Messaging' : 'Enable Push Messaging';
-  keyInput.disabled = pending || !user || !registration;
-  updateButton.disabled = pending || !user || !registration;
+  pushButton.disabled = pending || !user || !registration || !serverPublicKey || window.Notification?.permission === 'denied';
+  pushButton.textContent = window.Notification?.permission === 'denied' ? 'Notifications blocked' : subscription ? (currentKeyMatches() ? 'Disable Push Messaging' : 'Update push subscription') : 'Enable Push Messaging';
+  sendButton.disabled = pending || !user || !subscription || !currentKeyMatches();
+  retrySetupButton.hidden = !!serverPublicKey;
+  retrySetupButton.disabled = pending;
   details.classList.toggle('is-invisible', !user || !subscription);
   subscriptionJson.textContent = user && subscription ? JSON.stringify(subscription.toJSON(), null, 2) : '';
 }
@@ -107,7 +115,7 @@ async function unsubscribe() {
 }
 
 async function subscribe() {
-  const key = decodePublicKey(keyInput.value.trim());
+  const key = decodePublicKey(serverPublicKey);
   if (Notification.permission !== 'granted') {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') throw new Error('Allow notifications to enable push messaging.');
@@ -123,28 +131,33 @@ async function subscribe() {
     });
   }
   await saveCurrentSubscription();
-  status.textContent = 'Subscription saved to your account. A message sender is still required.';
+  status.textContent = 'Subscription saved. You can now send yourself a test notification.';
 }
 
 signInButton.addEventListener('click', () => perform(() => signInWithPopup(auth, new GoogleAuthProvider()), 'Google sign-in'));
 signOutButton.addEventListener('click', () => perform(async () => {
   await unsubscribe();
   await signOut(auth);
-  keyInput.value = '';
   status.textContent = 'Signed out and unsubscribed on this browser.';
 }));
 pushButton.addEventListener('click', () => perform(async () => {
-  if (subscription) {
+  if (subscription && currentKeyMatches()) {
     await unsubscribe();
     status.textContent = 'Unsubscribed on this browser.';
   } else {
     await subscribe();
   }
 }));
-keyForm.addEventListener('submit', event => {
-  event.preventDefault();
-  return perform(subscribe);
-});
+sendButton.addEventListener('click', () => perform(async () => {
+  await sendMyTestNotification(auth.currentUser, subscription);
+  status.textContent = 'The push service accepted your test notification. Check your device notifications.';
+}, 'Send test notification'));
+async function loadBackendKey() {
+  serverPublicKey = await loadPushPublicKey();
+  diagnostics.record('Backend public key loaded');
+  render();
+}
+retrySetupButton.addEventListener('click', () => perform(loadBackendKey, 'Load push setup'));
 document.getElementById('copyToClipboard').addEventListener('click', () => perform(async () => {
   if (!subscription || !auth.currentUser) throw new Error('Sign in and subscribe first.');
   await navigator.clipboard.writeText(subscriptionJson.textContent);
@@ -158,8 +171,11 @@ async function reconcile(user) {
     const current = await registration.pushManager.getSubscription();
     if (auth.currentUser?.uid !== user.uid) return;
     subscription = current;
-    if (current?.options.applicationServerKey) keyInput.value = encodePublicKey(current.options.applicationServerKey);
-    await saveCurrentSubscription();
+    if (current && !currentKeyMatches()) {
+      status.textContent = 'This browser has an older subscription. Click Update push subscription to use the new sender.';
+    } else {
+      await saveCurrentSubscription();
+    }
   } catch (error) {
     if (auth.currentUser?.uid === user.uid) showError(error);
   } finally {
@@ -185,6 +201,7 @@ async function start() {
     registration = await navigator.serviceWorker.register('sw.js');
     await navigator.serviceWorker.ready;
     diagnostics.record('Service worker ready');
+    try { await loadBackendKey(); } catch (error) { showError(error); }
     if (auth.currentUser) {
       await reconcile(auth.currentUser);
     }

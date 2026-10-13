@@ -3,7 +3,7 @@ import stylistic from '@stylistic/eslint-plugin';
 import globals from 'globals';
 
 export default [
-  { ignores: ['node_modules/**', 'dist/**', 'app/dist/**', 'build/**', '.tmp/**'] },
+  { ignores: ['**/node_modules/**', 'dist/**', 'app/dist/**', 'build/**', '.tmp/**'] },
   js.configs.recommended,
   {
     files: ['app/**/*.js', 'completed/**/*.js', 'src/**/*.mjs'],
@@ -25,6 +25,7 @@ export default [
   },
   { files: ['src/**/*.mjs'], languageOptions: { sourceType: 'module' } },
   { files: ['test/**/*.js', 'test/**/*.mjs'], languageOptions: { globals: globals.node, sourceType: 'commonjs' } },
+  { files: ['functions/**/*.cjs'], languageOptions: { globals: globals.node, sourceType: 'commonjs' } },
   { files: ['scripts/**/*.mjs'], languageOptions: { globals: globals.node } },
   { files: ['test/**/*.mjs'], languageOptions: { sourceType: 'module' } }
 ];

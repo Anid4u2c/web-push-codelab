@@ -16,7 +16,7 @@ export function createDiagnostics(document) {
   const events = [];
   const output = document.getElementById('diagnosticsOutput');
   const fields = ['Site', 'Auth domain', 'Signed in', 'Secure context', 'Push supported',
-    'Notification permission', 'Service worker', 'Subscription'];
+    'Notification permission', 'Service worker', 'Push backend', 'Subscription'];
   function refresh() {
     output.textContent = fields.map(field => `${field}: ${state[field] ?? 'Checking'}`).join('\n')
       + '\n\nRecent events (this tab only):\n' + (events.join('\n') || 'None');

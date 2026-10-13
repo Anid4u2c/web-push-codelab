@@ -1,4 +1,4 @@
-name: Validate and deploy Firebase Hosting
+name: Validate and deploy Firebase push demo
 
 on:
   push:
@@ -24,6 +24,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix functions --no-audit --no-fund
       - run: npm test
       - run: npm run build
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
@@ -43,6 +44,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix functions --no-audit --no-fund
       - run: npm run build
       - name: Check deployment credential
         env:
@@ -58,6 +60,30 @@ jobs:
             throw new Error('The deployment credential must belong to web-push-4u2c.');
           }
           fs.writeFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, raw, { mode: 0o600 });
+          NODE
+      - name: Prepare stable VAPID secret
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+        run: node scripts/prepare-push.mjs
+      - name: Deploy push backend before Hosting
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+        run: |
+          node <<'NODE'
+          const { spawnSync } = require('node:child_process');
+          const result = spawnSync(process.execPath, [
+            'node_modules/firebase-tools/lib/bin/firebase.js', 'deploy',
+            '--only', 'functions:push', '--project', 'web-push-4u2c', '--non-interactive'
+          ], { encoding: 'utf8' });
+          process.stdout.write(result.stdout || '');
+          process.stderr.write(result.stderr || '');
+          if (result.status !== 0) {
+            const output = `${result.stdout || ''}\n${result.stderr || ''}`.replace(/\x1b\[[0-9;]*m/g, '');
+            const message = output.split('\n').map(line => line.trim()).find(line => line.includes('Error:'))
+              || 'Function deployment failed. Inspect the Firebase CLI output.';
+            console.log(`::error::${message.replaceAll('%', '%25').replaceAll('\r', '%0D')}`);
+          }
+          process.exit(result.status ?? 1);
           NODE
       - name: Deploy database rules before Hosting
         env:
