@@ -3,20 +3,25 @@
   "version": "1.0.0",
   "description": "Push notifications codelab.",
   "scripts": {
-    "lint": "eslint \".\"",
-    "test": "npm run lint"
+    "lint": "eslint .",
+    "test": "npm run lint && node --test"
   },
   "devDependencies": {
-    "eslint": "^3.8.1",
-    "eslint-config-google": "^0.7.0"
+    "@eslint/js": "10.0.1",
+    "@stylistic/eslint-plugin": "5.10.0",
+    "eslint": "10.12.0",
+    "globals": "17.13.0"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GoogleChrome/push-notifications.git"
+    "url": "git+https://github.com/Anid4u2c/web-push-codelab.git"
   },
-  "license": "Apache 2",
+  "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/GoogleChrome/push-notifications/issues"
+    "url": "https://github.com/Anid4u2c/web-push-codelab/issues"
   },
-  "homepage": "https://github.com/GoogleChrome/push-notifications#readme"
+  "homepage": "https://github.com/Anid4u2c/web-push-codelab#readme",
+  "engines": {
+    "node": ">=24"
+  }
 }

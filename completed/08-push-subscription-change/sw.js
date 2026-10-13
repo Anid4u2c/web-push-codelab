@@ -17,20 +17,17 @@
 *
 */
 
-/* eslint-env browser, serviceworker, es6 */
 
 'use strict';
 
-/* eslint-disable max-len */
 
 const applicationServerPublicKey = 'BH8-hIchXKMI6AKSee8gD0hhPThRqaEhIEtMJwcTjEQhiOKdG-_2tTIO-6hOAK4kwg5M9Saedjxp4hVE-khhWxY';
 
-/* eslint-enable max-len */
 
 function urlB64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
+    .replace(/-/g, '+')
     .replace(/_/g, '/');
 
   const rawData = window.atob(base64);

@@ -1,4 +1,3 @@
-/* eslint-disable no-undef,no-trailing-spaces */
 /*
 *
 *  Push Notifications codelab
@@ -18,58 +17,57 @@
 *
 */
 
-/* eslint-env browser, es6 */
 
 'use strict';
-/* eslint-disable max-len */
+
 let applicationServerPublicKey;
 
-function firebaseSetPublickKey() {
+function loadPublicKey() {
   return firebase.database().ref('/publicKey/').once('value').then(function(snapshot) {
-	applicationServerPublicKey = (snapshot.val() && snapshot.val().key) || '';
-	console.log('firebaseSetPublickKey, applicationServerPublicKey:  ', applicationServerPublicKey);
-	publicKeyEl.value = applicationServerPublicKey;
-	document.querySelector('.mdl-textfield').MaterialTextfield.checkDirty();
+    applicationServerPublicKey = (snapshot.val() && snapshot.val().key) || '';
+    console.log('loadPublicKey, applicationServerPublicKey:  ', applicationServerPublicKey);
+    publicKeyEl.value = applicationServerPublicKey;
+    document.querySelector('.mdl-textfield').MaterialTextfield.checkDirty();
   });
 }
 
-function firebaseSetSubscription(subscription) {
-	console.log('firebaseSetSubscription, subscription:  ', subscription);
-	firebase.database().ref('/subscription/').set({
-		endpoint: subscription.endpoint,
-		expirationTime: subscription.expirationTime,
-		keys: {p256dh: subscription.keys.p256dh, auth: subscription.keys.auth}
-	},
-	function(error) {
-		if (error) {
-			console.log('Data could not be saved.' + error);
-		} else {
-			console.log('Data saved successfully.');
-		}
-	});
+function saveSubscription(subscription) {
+  firebase.database().ref('/subscription/').set({
+    endpoint: subscription.endpoint,
+    expirationTime: subscription.expirationTime,
+    keys: {p256dh: subscription.keys.p256dh, auth: subscription.keys.auth}
+  },
+  function(error) {
+    if (error) {
+      console.log('Data could not be saved.' + error);
+    } else {
+      console.log('Data saved successfully.');
+    }
+  });
 }
 
-function firebaseUpdatePublicKey() {
-	applicationServerPublicKey = publicKeyEl.value;
-	console.log('firebaseUpdatePublicKey, applicationServerPublicKey:  ', applicationServerPublicKey);
-	firebase.database().ref('/publicKey/').set({
-        key: applicationServerPublicKey
-	});
-	swRegistration.pushManager.getSubscription()
-		.then(function(subscription) {
-			if (subscription) {
-				return subscription.unsubscribe();
-			}
-		})
-		.catch(function(error) {
-			console.log('Error unsubscribing', error);
-		})
-		.then(function() {
-			updateSubscriptionOnServer(null);
-			console.log('User is unsubscribed.');
-			isSubscribed = false;
-			subscribeUser();
-		});
+function firebaseUpdatePublicKey(event) {
+  event.preventDefault();
+  applicationServerPublicKey = publicKeyEl.value;
+  console.log('firebaseUpdatePublicKey, applicationServerPublicKey:  ', applicationServerPublicKey);
+  firebase.database().ref('/publicKey/').set({
+    key: applicationServerPublicKey
+  });
+  swRegistration.pushManager.getSubscription()
+    .then(function(subscription) {
+      if (subscription) {
+        return subscription.unsubscribe();
+      }
+    })
+    .catch(function(error) {
+      console.log('Error unsubscribing', error);
+    })
+    .then(function() {
+      updateSubscriptionOnServer(null);
+      console.log('User is unsubscribed.');
+      isSubscribed = false;
+      subscribeUser();
+    });
 }
 
 const publicKeyEl = document.getElementById('publicKey');
@@ -82,7 +80,7 @@ let swRegistration = null;
 function urlB64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
+    .replace(/-/g, '+')
     .replace(/_/g, '/');
 
   const rawData = window.atob(base64);
@@ -102,83 +100,76 @@ function updateBtn() {
     return;
   }
 
-  if (isSubscribed) {
-    pushButton.textContent = 'Disable Push Messaging';
-    document.getElementById('publicKeyWrapper').style.display = 'inline-block';
-	document.getElementById('updatePublicKey').style.display = 'inline-block';
-  } else {
-    pushButton.textContent = 'Enable Push Messaging';
-    document.getElementById('publicKeyWrapper').style.display = 'none';
-    document.getElementById('updatePublicKey').style.display = 'none';
-  }
+  pushButton.textContent = isSubscribed ? 'Disable Push Messaging' : 'Enable Push Messaging';
+  const display = isSubscribed ? 'inline-block' : 'none';
+  document.getElementById('publicKeyWrapper').style.display = display;
+  updateButton.style.display = display;
 
   pushButton.disabled = false;
 }
 
 function updateSubscriptionOnServer(subscription) {
-	console.log('updateSubscriptionOnServer, subscription:  ', subscription);
-	const subscriptionJson = document.querySelector('.js-subscription-json');
-	const subscriptionDetails = document.querySelector('.js-subscription-details');
+  const subscriptionJson = document.querySelector('.js-subscription-json');
+  const subscriptionDetails = document.querySelector('.js-subscription-details');
 
-	if (subscription) {
-		subscriptionJson.textContent = JSON.stringify(subscription);
-		subscriptionJson.setAttribute('readonly', '');
-		subscriptionDetails.classList.remove('is-invisible');
-		firebaseSetSubscription(JSON.parse(subscriptionJson.textContent));
-	} else {
-		subscriptionJson.textContent = '';
-		subscriptionDetails.classList.add('is-invisible');
-		firebase.database().ref('/subscription/').set(null);
-	}
+  if (subscription) {
+    subscriptionJson.textContent = JSON.stringify(subscription);
+    subscriptionDetails.classList.remove('is-invisible');
+    saveSubscription(subscription.toJSON());
+  } else {
+    subscriptionJson.textContent = '';
+    subscriptionDetails.classList.add('is-invisible');
+    firebase.database().ref('/subscription/').set(null);
+  }
 }
 
 function subscribeUser() {
-	console.log('subscribeUser, applicationServerPublicKey:  ', applicationServerPublicKey);
-	if(applicationServerPublicKey) {
-		document.getElementById('note').style.display = 'none';
-		const applicationServerKey = urlB64ToUint8Array(applicationServerPublicKey);
-		swRegistration.pushManager.subscribe({
-			userVisibleOnly: true,
-			applicationServerKey: applicationServerKey
-		})
-		.then(function(subscription) {
-			console.log('User is subscribed.');
+  console.log('subscribeUser, applicationServerPublicKey:  ', applicationServerPublicKey);
+  if(applicationServerPublicKey) {
+    document.getElementById('note').style.display = 'none';
+    const applicationServerKey = urlB64ToUint8Array(applicationServerPublicKey);
+    swRegistration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: applicationServerKey
+    })
+      .then(function(subscription) {
+        console.log('User is subscribed.');
 
-			updateSubscriptionOnServer(subscription);
+        updateSubscriptionOnServer(subscription);
 
-			isSubscribed = true;
+        isSubscribed = true;
 
-			updateBtn();
-		})
-		.catch(function(err) {
-			console.log('Failed to subscribe the user: ', err);
-			updateBtn();
-		});
-	} else {
-		document.getElementById('note').style.display = 'inline-block';
-		document.getElementById('publicKeyWrapper').style.display = 'inline-block';
-		document.getElementById('updatePublicKey').style.display = 'inline-block';
-	}
+        updateBtn();
+      })
+      .catch(function(err) {
+        console.log('Failed to subscribe the user: ', err);
+        updateBtn();
+      });
+  } else {
+    document.getElementById('note').style.display = 'inline-block';
+    document.getElementById('publicKeyWrapper').style.display = 'inline-block';
+    document.getElementById('updatePublicKey').style.display = 'inline-block';
+  }
 }
 
 function unsubscribeUser() {
   swRegistration.pushManager.getSubscription()
-  .then(function(subscription) {
-    if (subscription) {
-      return subscription.unsubscribe();
-    }
-  })
-  .catch(function(error) {
-    console.log('Error unsubscribing', error);
-  })
-  .then(function() {
-    updateSubscriptionOnServer(null);
+    .then(function(subscription) {
+      if (subscription) {
+        return subscription.unsubscribe();
+      }
+    })
+    .catch(function(error) {
+      console.log('Error unsubscribing', error);
+    })
+    .then(function() {
+      updateSubscriptionOnServer(null);
 
-    console.log('User is unsubscribed.');
-    isSubscribed = false;
+      console.log('User is unsubscribed.');
+      isSubscribed = false;
 
-    updateBtn();
-  });
+      updateBtn();
+    });
 }
 
 function initializeUI() {
@@ -191,44 +182,43 @@ function initializeUI() {
     }
   });
 
-	updateButton.addEventListener('click', firebaseUpdatePublicKey);
+  updateButton.addEventListener('click', firebaseUpdatePublicKey);
 
-	new ClipboardJS('#copyToClipboard');
-	new ClipboardJS('#copyToClipboardFromLink');
+  new ClipboardJS('#copyToClipboard');
+  new ClipboardJS('#copyToClipboardFromLink');
 
   // Set the initial subscription value
   swRegistration.pushManager.getSubscription()
-  .then(function(subscription) {
-    isSubscribed = !(subscription === null);
+    .then(function(subscription) {
+      isSubscribed = !(subscription === null);
 
-    updateSubscriptionOnServer(subscription);
+      updateSubscriptionOnServer(subscription);
 
-    if (isSubscribed) {
-      console.log('User IS subscribed.');
-      firebaseSetPublickKey();
-    } else {
-      console.log('User is NOT subscribed.');
-    }
+      if (isSubscribed) {
+        console.log('User IS subscribed.');
+        loadPublicKey();
+      } else {
+        console.log('User is NOT subscribed.');
+      }
 
-    updateBtn();
-  });
+      updateBtn();
+    });
 }
 
 if ('serviceWorker' in navigator && 'PushManager' in window) {
   console.log('Service Worker and Push is supported');
 
   navigator.serviceWorker.register('sw.js')
-  .then(function(swReg) {
-    console.log('Service Worker is registered', swReg);
+    .then(function(swReg) {
+      console.log('Service Worker is registered', swReg);
 
-    swRegistration = swReg;
-    initializeUI();
-  })
-  .catch(function(error) {
-    console.error('Service Worker Error', error);
-  });
+      swRegistration = swReg;
+      initializeUI();
+    })
+    .catch(function(error) {
+      console.error('Service Worker Error', error);
+    });
 } else {
   console.warn('Push messaging is not supported');
   pushButton.textContent = 'Push Not Supported';
 }
-/* eslint-enable max-len */

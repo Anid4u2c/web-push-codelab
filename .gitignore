@@ -14,3 +14,13 @@ src/css/styles.min.css
 dist
 .tmp
 npm-debug.log
+
+# Local credentials and environment overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*service-account*.json
+*serviceAccount*.json
+.firebase/

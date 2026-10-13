@@ -17,10 +17,9 @@
 *
 */
 
-/* eslint-env browser, serviceworker, es6 */
 
 'use strict';
-/* eslint-disable max-len */
+
 
 self.addEventListener('push', function(event) {
   console.log('[Service Worker] Push Received.');
@@ -54,4 +53,3 @@ self.addEventListener('notificationclick', function(event) {
 // There is no subscription-registration backend in this repository.
 // Reconcile the browser subscription when the user next opens the app.
 // Do not renew with a different VAPID key or POST to a nonexistent endpoint.
-/* eslint-enable max-len */

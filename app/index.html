@@ -29,9 +29,8 @@
     </p>
     <!-- Textfield with Floating Label -->
 
-    <p id="note"><b>Note:  </b>We don't yet have an <code>applicationServerPublicKey</code> to create a <code>subscription</code>.<br/>
-      Please proceed to the <a href="https://web-push-codelab.glitch.me/" target="_blank">Push Companion Site</a>,
-      copy the "<b>Public Key</b>", paste it into the text field below, and click the button to 'UPDATE PUBLIC KEY'.</p>
+    <p id="note">Enter your push server's VAPID <b>public key</b> below to subscribe.
+      The original Glitch companion site is no longer hosted. A replacement message sender is not yet available.</p>
     <form action="#">
       <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" id="publicKeyWrapper">
         <input class="mdl-textfield__input" type="text" id="publicKey">
@@ -46,28 +45,18 @@
     </form>
 
     <section class="subscription-details js-subscription-details is-invisible">
-      <p>Now that you're subscribed, your subscription data is stored
-      in a database so that when you want to send a message (from the <a href="https://web-push-codelab.glitch.me/" target="_blank">Push Companion Site</a>)
-      the subscription data (object) can be retrieved, in order for messages to be sent.</p>
-      <p>The next step is to <a href="#"  id="copyToClipboardFromLink" data-clipboard-target="#json">copy</a> the Subscription Data (below), and paste it into the "<b>Subscription to Send To</b>" textarea, in <a href="https://web-push-codelab.glitch.me/" target="_blank">Push Companion Site</a>,
-        and click the button to "SEND PUSH MESSAGE".  If not "<b>Text to Send</b>" is entered, a default message will be displayed.</p>
-      <p>
-        <b>IMPORTANT:</b>
-        <ul>
-          <li>The Application Server Public Key on this site must be the same as the "<b>Public Key</b>" generated from the <a href="https://web-push-codelab.glitch.me/" target="_blank">Push Companion Site</a>.</li>
-          <li>If you receive an error when attempting to send a message from the <a href="https://web-push-codelab.glitch.me/" target="_blank">Push Companion Site</a>, click the button to "REFRESH KEYS", copy, paste, and "UPDATE PUBLIC KEY" on this site.</li>
-          <li><b>NOTE:  </b>If your notifications are not showing any badges or icons, go to <a target="_blank">chrome://flags/</a> and set <b>Enable native notifications.</b> to "Disabled".<br/>
-            <ul><li>View this <a href="https://www.addictivetips.com/ubuntu-linux-tips/turn-on-native-notifications-for-google-chrome-linux/" target="_blank">resource</a> for more information.</li></ul>
-          </li>
-        </ul>
-      </p>
+      <p>Your browser is subscribed. To send a message, your application server needs this
+        subscription and the private VAPID key matching the public key used above.</p>
+      <p>You can <a href="#" id="copyToClipboardFromLink" data-clipboard-target="#json">copy the subscription</a>
+        for your sender. Treat subscription details as private and do not publish them.</p>
+      <p>Notification icons and actions depend on browser and operating-system support.</p>
       <h4>Subscription Data</h4>
       <div id="jsonWrapper">
         <!-- Target -->
         <pre><code class="js-subscription-json" id="json"></code></pre>
         <!-- Trigger -->
         <button class="mdl-button mdl-js-button mdl-button--accent mdl-button--fab mdl-js-ripple-effect" id="copyToClipboard" data-clipboard-target="#json">
-          <img src="images/baseline-file_copy-24px.svg" alt="Copy to clipboard">
+          Copy
         </button>
       </div>
     </section>

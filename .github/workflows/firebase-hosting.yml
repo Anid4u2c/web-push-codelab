@@ -22,7 +22,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
-      - run: npm install --package-lock=false --no-audit --no-fund
+          cache: npm
+      - run: npm ci --no-audit --no-fund
       - run: npm test
 
   deploy:
