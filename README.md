@@ -6,52 +6,53 @@ Primary site: **https://web-push-4u2c.web.app**. The alternate Firebase Hosting 
 
 ## Development
 
-Use Node.js 24 or newer and Python 3 for the static server.
+Use Node.js 24 or newer, Python 3 for the static server, and Java 21 for database rules tests.
 
 ```sh
 npm ci
 npm test
+npm run build
+npm run test:rules
 python3 -m http.server 8000 --bind 127.0.0.1 --directory .
 ```
 
-The static server exposes `/app/` and the examples under `/completed/`. It does not provide Firebase Hosting's reserved SDK and initialization routes, so the app's database integration requires Firebase Hosting or a suitable emulator configuration.
+The static server exposes `/app/` and the examples under `/completed/`. Build the app first. The modular Firebase SDK is bundled locally, so reserved Hosting SDK routes are no longer required. Firebase web configuration is in `src/firebase-config.mjs`. Local sign-in requires an authorized localhost domain and a development API key configuration; never use live credentials for emulator tests.
 
-`npm test` runs ESLint and five Node tests covering notification payloads, notification clicks, form navigation, and subscription serialization. These tests do not exercise live Firebase authentication or push delivery. ESLint uses a flat configuration in `eslint.config.mjs`; dependency versions are pinned in `package-lock.json`.
+`npm test` runs ESLint and eight Node tests covering notification handling, Google sign-in UI, per-owner subscription paths, form submission, sign-out cleanup, and VAPID key conversion. `npm run test:rules` uses a demo-project database emulator to check owner access, cross-user denial, legacy-path denial, record validation, and multiple devices. These checks do not exercise live Google authentication or push delivery. ESLint uses a flat configuration in `eslint.config.mjs`; dependency versions are pinned in `package-lock.json`.
 
 The frontend remains plain JavaScript. Its current size does not justify a React dependency or build pipeline.
 
 ## Deployment
 
-GitHub Actions runs tests on pull requests and pushes to `master`. A successful push to `master` deploys **Hosting only** to project `web-push-4u2c`. The workflow can also be started manually on `master`.
+GitHub Actions runs tests on pull requests and pushes to `master`. A successful push to `master` deploys **database rules first, then Hosting** to project `web-push-4u2c`. The release stops if rules cannot be deployed. The workflow can also be started manually on `master`.
 
-The repository secret `FIREBASE_SERVICE_ACCOUNT` supplies the deployment credential for `github-deploy@web-push-4u2c.iam.gserviceaccount.com`. Keep the credential in GitHub Actions secrets; never commit its JSON key. The deployment account has Firebase Hosting Admin. Actions are pinned to commit IDs, and pull requests cannot run the production deployment job.
+The repository secret `FIREBASE_SERVICE_ACCOUNT` supplies the deployment credential for `github-deploy@web-push-4u2c.iam.gserviceaccount.com`. Keep the credential in GitHub Actions secrets; never commit its JSON key. The deployment account has Firebase Hosting Admin; it also needs **Firebase Realtime Database Admin** (`roles/firebasedatabase.admin`) to publish rules. Actions are pinned to commit IDs, and pull requests cannot run the production deployment job.
 
-Database rules and backend functions are not deployed by this workflow. Do not run a blanket `firebase deploy` with the current database rules.
+CI runs the unit tests, build, and database emulator tests before deployment. The deploy job writes its credential to a temporary restricted file and removes it after use. Backend functions are not deployed. Existing legacy database data is not deleted, but the new rules make global `/subscription/` and `/publicKey/` records inaccessible to clients.
 
 ## Current limitations
 
 This is a legacy demo, not yet a complete authenticated PWA:
 
-- The checked-in Realtime Database rules allow public reads and writes. Live rules must be inspected separately. Replace the rules and shared `/subscription/` record together with authenticated per-user, per-device storage before opening the demo to multiple users.
-- Google sign-in is enabled in the project but has no frontend integration yet. Sign-in alone must not grant permission to send notifications.
-- The app uses Firebase SDK 6.0.2, Material Design Lite, and a clipboard library. Migrate to the modular Firebase SDK and native Clipboard API during the next frontend update.
+- Subscriptions are stored at `/subscriptions/{uid}/{endpointHash}`. Rules deny unauthenticated and cross-user access. Deploy the new rules before using this client; the workflow enforces that order. Legacy records may need administrator cleanup after a backup.
+- Google sign-in is integrated; anonymous provider enablement does not automatically sign users in. Sign-out unsubscribes this browser and deletes its owned record. Sign-in alone does not grant sender privileges. Keep both hosting domains authorized.
+- Firebase SDK 13 is bundled with esbuild, and copying uses the native Clipboard API. Material Design Lite remains a legacy styling dependency.
 - The manifest, install experience, offline strategy, and message-sending backend remain to be implemented.
 - Glitch project hosting has ended; the active app no longer links to its companion site. The original companion-site links and embedded keys in `completed/` are historical examples. Supply your own application-server public key; the VAPID private key belongs exclusively on the backend.
 - Automatic subscription renewal needs an authenticated backend. The app checks the browser subscription when opened; it does not post renewals to a placeholder endpoint.
 
 ## Next steps
 
-1. Integrate Google authentication using the registered Firebase web app configuration. Keep both Hosting domains authorized. Configure and test same-origin auth handling before changing `authDomain` for redirect sign-in.
-2. Move subscriptions under each user's UID and device identifier. Test ownership, validation, deletion, and account linking with database rules in an emulator.
-3. Add a Cloud Functions sender using standards-based Web Push and stable VAPID credentials. Authorize senders server-side, validate payloads and push endpoints, limit sends, and remove expired subscriptions. Firebase Cloud Messaging is an alternative with a different registration flow.
-4. Add a web manifest, install guidance, and explicit permission controls. Define notification action behavior and unsupported-browser states.
-5. Test real delivery, unsubscribe, denied permissions, multiple users, and both Hosting origins. Include supported Android browsers and installed iOS/iPadOS Home Screen web apps.
+1. Verify the release's Google sign-in on both authorized Hosting domains and check the live rules. Test with two distinct accounts and multiple browser profiles.
+2. Add a Cloud Functions sender using standards-based Web Push and stable VAPID credentials. Authorize senders server-side, validate payloads and push endpoints, limit sends, and remove expired subscriptions. Firebase Cloud Messaging is an alternative with a different registration flow.
+3. Add a web manifest, install guidance, and explicit permission controls. Define notification action behavior and unsupported-browser states.
+4. Test real delivery, unsubscribe, denied permissions, multiple users, and both Hosting origins. Include supported Android browsers and installed iOS/iPadOS Home Screen web apps.
 
 ## Security and credentials
 
 Firebase web app configuration and VAPID **public** keys are client configuration, not server credentials. Private VAPID keys, service-account JSON, OAuth client secrets, and personal access tokens must stay outside the repository. Local environment files and common credential file extensions are ignored; ignore rules are a precaution, not a secret detector.
 
-A credential-pattern review of tracked files found no matching server credentials. Local Git history includes cryptography test keys and PEM-format markers from previously vendored Python libraries; these are test fixtures or library code, not identified deployment credentials. Pattern matching cannot guarantee the absence of every secret. Open database access is a separate issue and remains unresolved.
+A credential-pattern review of tracked files found no matching server credentials. Local Git history includes cryptography test keys and PEM-format markers from previously vendored Python libraries; these are test fixtures or library code, not identified deployment credentials. Pattern matching cannot guarantee the absence of every secret. Live rule deployment must be verified separately. The runtime dependency audit is clear after a compatible gRPC override. The Firebase CLI still introduces upstream development-tool advisories; do not interpret the earlier tooling-only audit as the status of this expanded dependency set.
 
 ## Sources
 

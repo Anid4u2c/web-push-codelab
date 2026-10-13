@@ -53,7 +53,7 @@ pre code {
 }
 
 .is-invisible {
-  opacity: 0;
+  display: none;
 }
 
 .subscription-details {
@@ -78,10 +78,10 @@ pre code {
 }
 
 #note {
-	display: none;
+  display: block;
 }
 
 #publicKeyWrapper {
-  display: none;
+  display: block;
   width: 100%;
 }

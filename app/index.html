@@ -17,10 +17,14 @@
 
   <header>
     <h1>Enhanced from <a href="https://codelabs.developers.google.com/codelabs/push-notifications/" target="_blank">Push Codelab</a></h1>
-    <h3>View <a href="https://github.com/GoogleChromeLabs/web-push-codelab" target="_blank">SOURCE</a> on GitHub</h3>
+    <h3>View <a href="https://github.com/Anid4u2c/web-push-codelab" target="_blank">SOURCE</a> on GitHub</h3>
   </header>
 
   <main>
+    <p id="account">Checking sign-in…</p>
+    <button id="signIn" type="button" disabled>Sign in with Google</button>
+    <button id="signOut" type="button" hidden>Sign out and unsubscribe</button>
+    <p id="status" role="status" aria-live="polite"></p>
     <p>Welcome to the push messaging "enhanced" codelab. Push the button below to enable/disable push messages.</p>
     <p>
       <button disabled class="js-push-btn mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
@@ -31,14 +35,14 @@
 
     <p id="note">Enter your push server's VAPID <b>public key</b> below to subscribe.
       The original Glitch companion site is no longer hosted. A replacement message sender is not yet available.</p>
-    <form action="#">
+    <form id="keyForm">
       <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" id="publicKeyWrapper">
-        <input class="mdl-textfield__input" type="text" id="publicKey">
+        <input class="mdl-textfield__input" type="text" id="publicKey" required autocomplete="off" disabled>
         <label class="mdl-textfield__label" for="publicKey">Application Server Public Key</label>
       </div>
       <p>
       <!-- Colored raised button -->
-      <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" id="updatePublicKey">
+      <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" id="updatePublicKey" type="submit" disabled>
         UPDATE PUBLIC KEY
       </button>
       </p>
@@ -47,8 +51,7 @@
     <section class="subscription-details js-subscription-details is-invisible">
       <p>Your browser is subscribed. To send a message, your application server needs this
         subscription and the private VAPID key matching the public key used above.</p>
-      <p>You can <a href="#" id="copyToClipboardFromLink" data-clipboard-target="#json">copy the subscription</a>
-        for your sender. Treat subscription details as private and do not publish them.</p>
+      <p>Use the copy button for your sender. Subscription details are private; do not publish them.</p>
       <p>Notification icons and actions depend on browser and operating-system support.</p>
       <h4>Subscription Data</h4>
       <div id="jsonWrapper">
@@ -62,18 +65,6 @@
     </section>
   </main>
 
-  <!-- The core Firebase JS SDK is always required and must be listed first -->
-  <script src="/__/firebase/6.0.2/firebase-app.js"></script>
-
-  <!-- TODO: Add SDKs for Firebase products that you want to use
-	   https://firebase.google.com/docs/web/setup#reserved-urls -->
-  <script src="/__/firebase/6.0.2/firebase-database.js"></script>
-  <!-- Initialize Firebase -->
-  <script src="/__/firebase/init.js"></script>
-  <!--https://github.com/zenorocha/clipboard.js.git-->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script>
-  <script src="scripts/main.js"></script>
-  <script src="https://code.getmdl.io/1.2.1/material.min.js"></script>
-
+  <script type="module" src="dist/main.js"></script>
 </body>
 </html>

@@ -3,10 +3,10 @@ import stylistic from '@stylistic/eslint-plugin';
 import globals from 'globals';
 
 export default [
-  { ignores: ['node_modules/**', 'dist/**', 'build/**', '.tmp/**'] },
+  { ignores: ['node_modules/**', 'dist/**', 'app/dist/**', 'build/**', '.tmp/**'] },
   js.configs.recommended,
   {
-    files: ['app/**/*.js', 'completed/**/*.js'],
+    files: ['app/**/*.js', 'completed/**/*.js', 'src/**/*.mjs'],
     languageOptions: {
       sourceType: 'script',
       globals: { ...globals.browser, ...globals.serviceworker, firebase: 'readonly', ClipboardJS: 'readonly' }
@@ -23,5 +23,7 @@ export default [
       '@stylistic/semi': ['error', 'always']
     }
   },
-  { files: ['test/**/*.js'], languageOptions: { globals: globals.node, sourceType: 'commonjs' } }
+  { files: ['src/**/*.mjs'], languageOptions: { sourceType: 'module' } },
+  { files: ['test/**/*.js', 'test/**/*.mjs'], languageOptions: { globals: globals.node, sourceType: 'commonjs' } },
+  { files: ['test/**/*.mjs'], languageOptions: { sourceType: 'module' } }
 ];

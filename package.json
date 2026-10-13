@@ -4,12 +4,17 @@
   "description": "Push notifications codelab.",
   "scripts": {
     "lint": "eslint .",
-    "test": "npm run lint && node --test"
+    "test": "npm run lint && node --test test/*.test.js",
+    "build": "esbuild src/main.mjs --bundle --minify --format=esm --target=es2022 --outfile=app/dist/main.js",
+    "test:rules": "firebase emulators:exec --only database --project demo-web-push \"node --test test/rules.integration.mjs\""
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@firebase/rules-unit-testing": "6.0.0",
     "@stylistic/eslint-plugin": "5.10.0",
+    "esbuild": "0.28.2",
     "eslint": "10.12.0",
+    "firebase-tools": "15.33.0",
     "globals": "17.13.0"
   },
   "repository": {
@@ -23,5 +28,11 @@
   "homepage": "https://github.com/Anid4u2c/web-push-codelab#readme",
   "engines": {
     "node": ">=24"
+  },
+  "dependencies": {
+    "firebase": "13.0.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "1.14.6"
   }
 }

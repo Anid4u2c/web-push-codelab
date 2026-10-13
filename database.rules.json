@@ -1,7 +1,36 @@
 {
-  /* Visit https://firebase.google.com/docs/database/security to learn more about security rules. */
   "rules": {
-    ".read": true,
-    ".write": true
+    ".read": false,
+    ".write": false,
+    "subscriptions": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$id": {
+          ".write": "auth != null && auth.uid === $uid && $id.matches(/^[a-f0-9]{64}$/)",
+          ".validate": "newData.hasChildren(['endpoint', 'keys'])",
+          "endpoint": {
+            ".validate": "newData.isString() && newData.val().length <= 2048 && newData.val().matches(/^https:\\/\\/[A-Za-z0-9.-]+\\/[A-Za-z0-9._~:\\/?%&=+#-]+$/)"
+          },
+          "expirationTime": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "keys": {
+            ".validate": "newData.hasChildren(['p256dh', 'auth'])",
+            "p256dh": {
+              ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{87}$/)"
+            },
+            "auth": {
+              ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{22}$/)"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    }
   }
 }

@@ -59,36 +59,3 @@ test('notification click closes the notification and opens the app', async () =>
   assert.equal(closed, true);
   assert.deepEqual(worker.windows, ['https://web-push-4u2c.web.app/']);
 });
-
-test('public-key form prevents navigation and serializes browser subscriptions', async () => {
-  const source = fs.readFileSync('app/scripts/main.js', 'utf8');
-  const writes = [];
-  const elements = new Map();
-  const element = (name) => {
-    if (!elements.has(name)) elements.set(name, {
-      value: 'public-key', style: {}, classList: { add() {}, remove() {} }
-    });
-    return elements.get(name);
-  };
-  const context = vm.createContext({
-    console: { log() {}, warn() {}, error() {} },
-    document: { getElementById: element, querySelector: element },
-    navigator: {}, window: {},
-    firebase: { database: () => ({ ref: (path) => ({
-      set(value) { writes.push({ path, value }); return Promise.resolve(); }
-    }) }) }
-  });
-  vm.runInContext(source, context);
-  // Keep this test focused on form navigation and subscription serialization.
-  vm.runInContext('subscribeUser = () => {}; swRegistration = { pushManager: { getSubscription: () => Promise.resolve(null) } };', context);
-  let prevented = false;
-  context.firebaseUpdatePublicKey({ preventDefault() { prevented = true; } });
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(prevented, true);
-  const serialized = { endpoint: 'https://push.example/subscription', expirationTime: null,
-    keys: { p256dh: 'public-encryption-key', auth: 'test-auth' } };
-  context.updateSubscriptionOnServer({ toJSON: () => serialized });
-  assert.equal(writes.at(-1).path, '/subscription/');
-  assert.equal(writes.at(-1).value.endpoint, serialized.endpoint);
-  assert.equal(writes.at(-1).value.keys.auth, serialized.keys.auth);
-});
