@@ -62,7 +62,23 @@ jobs:
       - name: Deploy database rules before Hosting
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
-        run: npx --no-install firebase deploy --only database --project web-push-4u2c --non-interactive
+        run: |
+          node <<'NODE'
+          const { spawnSync } = require('node:child_process');
+          const result = spawnSync(process.execPath, [
+            'node_modules/firebase-tools/lib/bin/firebase.js', 'deploy',
+            '--only', 'database', '--project', 'web-push-4u2c', '--non-interactive'
+          ], { encoding: 'utf8' });
+          process.stdout.write(result.stdout || '');
+          process.stderr.write(result.stderr || '');
+          if (result.status !== 0) {
+            const output = `${result.stdout || ''}\n${result.stderr || ''}`;
+            const message = output.split('\n').find(line => line.startsWith('Error:'))
+              || 'Database rule deployment failed. Inspect the Firebase CLI output.';
+            console.log(`::error::${message.replaceAll('%', '%25').replaceAll('\r', '%0D')}`);
+          }
+          process.exit(result.status ?? 1);
+          NODE
       - name: Deploy Hosting only
         uses: FirebaseExtended/action-hosting-deploy@7c850a480ce753f4f06f010801fc5a43787740bb # v0
         with:
