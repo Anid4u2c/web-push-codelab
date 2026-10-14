@@ -55,7 +55,7 @@ Enter your project ID explicitly; the script does not display a saved project ID
 
 Before applying changes, it checks billing, lists existing accounts and secrets, and shows a plan for confirmation. It reuses existing resources and preserves secret versions and IAM bindings. Permission errors stop setup rather than being treated as missing resources. If the Secret Manager API is disabled, it checks for the secret after enabling the API and before creating anything. Interrupted setup can be rerun; earlier successful changes remain in place.
 
-The script enables required APIs, creates missing accounts and an empty secret container, and grants the roles below. Secret permissions are scoped to the chosen secret; Service Account User is scoped to the runtime account. It does not create service-account JSON keys or read secret values. GitHub generates the VAPID pair on deployment.
+The script enables required APIs, creates missing accounts and an empty secret container, and grants the roles below. Secret permissions are scoped to the chosen secret; Service Account User is scoped to the runtime account and, when present, the default App Engine account required by the pinned Firebase CLI. It does not create service-account JSON keys or read secret values. GitHub generates the VAPID pair on deployment.
 
 Your chosen names are saved in `functions/deployment-config.json`, which is shared by backend deployment and VAPID preparation. If you changed defaults, review, commit and push that file:
 
@@ -74,10 +74,21 @@ The Cloud Shell script performs these steps. They are also available manually:
 
 1. **Billing and APIs.** Enable Blaze billing. In [APIs & Services](https://console.cloud.google.com/apis/library), enable Cloud Functions, Cloud Build, Artifact Registry, Cloud Run, IAM and Secret Manager APIs.
 2. **Runtime identity.** Use your selected runtime service account (`RUNTIME_ACCOUNT@PROJECT_ID.iam.gserviceaccount.com`). Grant it Firebase Realtime Database Admin (`roles/firebasedatabase.admin`) on the project. This account runs the functions; it does not need Hosting or Functions deployment roles.
-3. **Allow deployment to use runtime.** Open [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts), select your runtime account, then **Permissions → Grant access**. Add `DEPLOY_ACCOUNT@PROJECT_ID.iam.gserviceaccount.com` as principal with **Service Account User** (`roles/iam.serviceAccountUser`). Apply this grant to the runtime account itself. Service Account Token Creator is not required for this deployment.
+3. **Allow deployment to use runtime.** Open [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts), select your runtime account, then **Permissions → Grant access**. Add `DEPLOY_ACCOUNT@PROJECT_ID.iam.gserviceaccount.com` as principal with **Service Account User** (`roles/iam.serviceAccountUser`). Apply this grant to the runtime account itself. The pinned Firebase CLI also checks `iam.serviceAccounts.actAs` on the existing default App Engine account (`PROJECT_ID@appspot.gserviceaccount.com`), even when functions use a custom runtime identity. Grant the deployment principal Service Account User on that account too; the setup script handles this when the account exists and never creates a default account. The functions still run as the selected runtime account. Service Account Token Creator is not required for this deployment.
 4. **Deployment permissions.** In [project IAM](https://console.cloud.google.com/iam-admin/iam), the selected deployment account needs Firebase Hosting Admin, Firebase Realtime Database Admin, Cloud Functions Developer (`roles/cloudfunctions.developer`) and Cloud Run Admin (`roles/run.admin`). The Cloud Shell administrator creates the secret container and grants the deployment account Secret Manager Admin (`roles/secretmanager.admin`) on that secret only. If relying on the deployment job to create the container instead, it needs project-level secret creation permissions initially. Do not grant Owner or Editor.
 5. **GitHub credential.** Keep the existing repository Actions secret **`FIREBASE_SERVICE_ACCOUNT`** containing the deployment account's JSON credential. No additional GitHub VAPID secret is needed.
 6. **Run deployment.** Push to `master`, or open [GitHub Actions](../../actions), select **Validate and deploy Firebase push demo**, and choose **Run workflow** on `master`. Check the preparation and function deployment steps before expecting the new Hosting UI.
+
+### Troubleshooting the default service-account permission check
+
+If deployment reports missing `iam.serviceAccounts.ActAs` on the default App Engine account, update your checkout and rerun setup:
+
+```sh
+git pull --ff-only
+node scripts/setup-gcp.mjs
+```
+
+Enter the same project and account names used previously, approve the displayed plan, then rerun deployment after IAM changes propagate. Alternatively, a project administrator can grant the deployment principal **Service Account User** directly on the existing default App Engine account in **Service Accounts → Permissions → Grant access**. A project-wide grant is unnecessary.
 
 ### Where `WEB_PUSH_VAPID` belongs
 
