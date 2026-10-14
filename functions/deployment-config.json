@@ -1,0 +1,6 @@
+{
+  "projectId": "web-push-4u2c",
+  "runtimeAccountId": "runtime",
+  "deploymentAccountId": "github-deploy",
+  "vapidSecretName": "WEB_PUSH_VAPID"
+}

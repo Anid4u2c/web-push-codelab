@@ -4,7 +4,7 @@
   "description": "Push notifications codelab.",
   "scripts": {
     "lint": "eslint .",
-    "test": "npm run lint && node --test test/*.test.js functions/test/*.test.cjs",
+    "test": "npm run lint && node --test test/*.test.js test/*.test.mjs functions/test/*.test.cjs",
     "build": "node scripts/build.mjs",
     "test:rules": "firebase emulators:exec --only database --project demo-web-push \"node --test test/rules.integration.mjs\""
   },

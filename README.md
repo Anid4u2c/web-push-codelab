@@ -39,20 +39,51 @@ The repository secret `FIREBASE_SERVICE_ACCOUNT` supplies the deployment credent
 
 CI runs the unit tests, build, and database emulator tests before deployment. The deploy job writes its credential to a temporary restricted file and removes it after use. Functions deploy from the `functions/` codebase before the app is published. Existing legacy database data is not deleted, but the new rules make global `/subscription/` and `/publicKey/` records inaccessible to clients.
 
+### Configure from Google Cloud Shell
+
+Use [Cloud Shell](https://console.cloud.google.com/?cloudshell=true&project=web-push-4u2c) while signed in as a project administrator. Blaze billing must already be enabled. In a fresh Cloud Shell checkout, run:
+
+```sh
+git clone https://github.com/Anid4u2c/web-push-codelab.git
+cd web-push-codelab
+node scripts/setup-gcp.mjs
+```
+
+If you already have a checkout, enter it and run `git pull --ff-only` first. The setup script uses Node.js and the Cloud Shell `gcloud` login; no npm installation or downloaded service-account key is needed.
+
+The script asks for the project ID, runtime account ID (default **runtime**), deployment account ID (default **github-deploy**) and Secret Manager name (default **WEB_PUSH_VAPID**). Press Enter to keep a default. It targets this app's existing project; migrating to another project requires updating the Firebase client, database and workflow separately.
+
+Before applying changes, it checks billing, lists existing accounts and secrets, and shows a plan for confirmation. It reuses existing resources and preserves secret versions and IAM bindings. Permission errors stop setup rather than being treated as missing resources. If the Secret Manager API is disabled, it checks for the secret after enabling the API and before creating anything. Interrupted setup can be rerun; earlier successful changes remain in place.
+
+The script enables required APIs, creates missing accounts and an empty secret container, and grants the roles below. Secret permissions are scoped to the chosen secret; Service Account User is scoped to the runtime account. It does not create service-account JSON keys or read secret values. GitHub generates the VAPID pair on deployment.
+
+Your chosen names are saved in `functions/deployment-config.json`, which is shared by backend deployment and VAPID preparation. If you changed defaults, review, commit and push that file:
+
+```sh
+git diff -- functions/deployment-config.json
+git add functions/deployment-config.json
+git commit -m "Configure push deployment identities"
+git push origin master
+```
+
+If the file is unchanged, skip the commit and rerun the deployment workflow on `master`. The existing GitHub `FIREBASE_SERVICE_ACCOUNT` credential must belong to the deployment account you selected; choosing a new account does not transfer the old credential. IAM changes may take a few minutes to propagate.
+
 ### One-time backend prerequisites
+
+The Cloud Shell script performs these steps. They are also available manually:
 
 1. **Billing and APIs.** Blaze billing is enabled. In [APIs & Services](https://console.cloud.google.com/apis/library?project=web-push-4u2c), enable Cloud Functions, Cloud Build, Artifact Registry, Cloud Run, IAM and Secret Manager APIs.
 2. **Runtime identity.** Use the existing `runtime@web-push-4u2c.iam.gserviceaccount.com`. Grant it Firebase Realtime Database Admin (`roles/firebasedatabase.admin`) on the project. This account runs the functions; it does not need Hosting or Functions deployment roles.
 3. **Allow deployment to use runtime.** Open [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts?project=web-push-4u2c), select **runtime**, then **Permissions → Grant access**. Add `github-deploy@web-push-4u2c.iam.gserviceaccount.com` as principal with **Service Account User** (`roles/iam.serviceAccountUser`). Apply this grant to the runtime account itself. Service Account Token Creator is not required for this deployment.
-4. **Deployment permissions.** In [project IAM](https://console.cloud.google.com/iam-admin/iam?project=web-push-4u2c), the `github-deploy` account needs Firebase Hosting Admin, Firebase Realtime Database Admin, Cloud Functions Developer (`roles/cloudfunctions.developer`) and Cloud Run Admin (`roles/run.admin`). Grant it Secret Manager Admin (`roles/secretmanager.admin`) for initial secret provisioning. Once the secret exists, scope that role to `WEB_PUSH_VAPID` rather than all project secrets. Do not grant Owner or Editor.
+4. **Deployment permissions.** In [project IAM](https://console.cloud.google.com/iam-admin/iam?project=web-push-4u2c), the `github-deploy` account needs Firebase Hosting Admin, Firebase Realtime Database Admin, Cloud Functions Developer (`roles/cloudfunctions.developer`) and Cloud Run Admin (`roles/run.admin`). The Cloud Shell administrator creates the secret container and grants the deployment account Secret Manager Admin (`roles/secretmanager.admin`) on that secret only. If relying on the deployment job to create the container instead, it needs project-level secret creation permissions initially. Do not grant Owner or Editor.
 5. **GitHub credential.** Keep the existing repository Actions secret **`FIREBASE_SERVICE_ACCOUNT`** containing the deployment account's JSON credential. No additional GitHub VAPID secret is needed.
 6. **Run deployment.** Push to `master`, or open [GitHub Actions](https://github.com/Anid4u2c/web-push-codelab/actions), select **Validate and deploy Firebase push demo**, and choose **Run workflow** on `master`. Check the preparation and function deployment steps before expecting the new Hosting UI.
 
 ### Where `WEB_PUSH_VAPID` belongs
 
-`WEB_PUSH_VAPID` is a **Google Cloud Secret Manager secret** in project `web-push-4u2c`, not a GitHub Actions secret or a browser environment variable. Its name is exactly `WEB_PUSH_VAPID`: do not add a `VITE_` or `FIREBASE_` prefix.
+`WEB_PUSH_VAPID` is a **Google Cloud Secret Manager secret** in project `web-push-4u2c`, not a GitHub Actions secret or a browser environment variable. Its default name is `WEB_PUSH_VAPID` (or the name chosen in setup): do not add a `VITE_` or `FIREBASE_` prefix.
 
-**You do not need to create or paste a key.** With the permissions above, `scripts/prepare-push.mjs` performs the setup automatically during deployment:
+**You do not need to create or paste a key.** Cloud Shell creates an empty secret container. With the permissions above, `scripts/prepare-push.mjs` performs the setup automatically during deployment:
 
 1. Creates the Secret Manager secret if it does not exist.
 2. Generates a matching VAPID public/private key pair and stores it as a JSON secret version only when no version exists. Values stay in memory during creation and are not printed or written to a local key file.

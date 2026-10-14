@@ -8,7 +8,8 @@ const { claimQuota, createHandlers, parseVapid } = require('./push.cjs');
 
 initializeApp({ databaseURL: 'https://web-push-4u2c.firebaseio.com' });
 const database = getDatabase();
-const vapid = defineSecret('WEB_PUSH_VAPID');
+const deployment = require('./deployment-config.json');
+const vapid = defineSecret(deployment.vapidSecretName);
 const handlers = createHandlers({
   getVapid: () => parseVapid(vapid.value()),
   verifyToken: token => getAuth().verifyIdToken(token),
@@ -24,7 +25,7 @@ const handlers = createHandlers({
 const options = {
   region: 'us-central1', memory: '256MiB', maxInstances: 1, concurrency: 10,
   timeoutSeconds: 15, invoker: 'public', secrets: [vapid],
-  serviceAccount: 'runtime@web-push-4u2c.iam.gserviceaccount.com'
+  serviceAccount: `${deployment.runtimeAccountId}@${deployment.projectId}.iam.gserviceaccount.com`
 };
 exports.pushConfig = onRequest(options, handlers.config);
 exports.testPush = onRequest(options, handlers.sendTest);

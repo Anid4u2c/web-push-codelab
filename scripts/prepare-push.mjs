@@ -1,10 +1,13 @@
+import { readFile } from 'node:fs/promises';
 import { createECDH } from 'node:crypto';
 import push from '../functions/push.cjs';
 import { GoogleAuth } from 'google-auth-library';
 
-const project = 'web-push-4u2c';
-const runtime = `runtime@${project}.iam.gserviceaccount.com`;
-const secretName = `projects/${project}/secrets/WEB_PUSH_VAPID`;
+const deployment = JSON.parse(await readFile(new URL('../functions/deployment-config.json', import.meta.url), 'utf8'));
+const project = deployment.projectId;
+const runtime = `${deployment.runtimeAccountId}@${project}.iam.gserviceaccount.com`;
+const secretId = deployment.vapidSecretName;
+const secretName = `projects/${project}/secrets/${secretId}`;
 const client = await new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] }).getClient();
 const request = (url, method = 'GET', data) => client.request({ url, method, data });
 const status = error => error.response?.status;
@@ -21,13 +24,13 @@ try {
     await request(base + secretName);
   } catch (error) {
     if (status(error) !== 404) throw error;
-    await request(`${base}projects/${project}/secrets?secretId=WEB_PUSH_VAPID`, 'POST', {
+    await request(`${base}projects/${project}/secrets?secretId=${secretId}`, 'POST', {
       replication: { automatic: {} }
     });
   }
   try {
     const latest = await request(`${base}${secretName}/versions/latest`);
-    if (latest.data.state !== 'ENABLED') throw new Error('Enable the existing WEB_PUSH_VAPID secret version. Do not replace the key pair.');
+    if (latest.data.state !== 'ENABLED') throw new Error(`Enable the existing ${secretId} secret version. Do not replace the key pair.`);
   } catch (error) {
     if (status(error) !== 404) throw error;
     // Generated only when no version exists. No secret values are written to disk or logs.
