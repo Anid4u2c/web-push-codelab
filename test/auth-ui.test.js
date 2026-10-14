@@ -21,6 +21,7 @@ async function loadPage(hostname = 'web-push-4u2c.web.app', options = {}) {
   }
   let initializedConfig;
   const requests = [];
+  const historyListeners = [];
   const bytes = new Uint8Array(65); bytes[0] = 4;
   const publicKey = Buffer.from(bytes).toString('base64url');
   const writes = [];
@@ -48,7 +49,13 @@ async function loadPage(hostname = 'web-push-4u2c.web.app', options = {}) {
       async signOut() { auth.currentUser = null; await callback(null); }
     },
     'firebase/database': {
-      getDatabase: () => ({}), get: async () => ({ val: () => ({}) }), query: value => value, limitToLast: () => ({}), orderByChild: () => ({}), onValue: (_ref, handler) => handler({ val: () => false }), ref: (_db, path) => path,
+      getDatabase: () => ({}), get: async () => ({ val: () => ({}) }), query: value => value, limitToLast: () => ({}), orderByChild: () => ({}), onValue: (reference, handler) => {
+        if (reference === '.info/connected') { handler({ val: () => false }); return () => {}; }
+        const listener = { reference, handler, stopped: false };
+        historyListeners.push(listener);
+        handler({ val: () => ({}) });
+        return () => { listener.stopped = true; };
+      }, ref: (_db, path) => path,
       async set(path, value) { writes.push({ path, value }); if (options.hangSave) await new Promise(() => {}); },
       async remove(path) { deletions.push(path); }
     }
@@ -68,7 +75,7 @@ async function loadPage(hostname = 'web-push-4u2c.web.app', options = {}) {
   });
   await callback(null);
   await new Promise(resolve => setImmediate(resolve));
-  return { element, writes, deletions, auth, callback, initializedConfig, requests };
+  return { element, writes, deletions, auth, callback, initializedConfig, requests, historyListeners };
 }
 
 test('signed-out initialization makes no subscription writes; Google sign-in enables controls', async () => {
@@ -155,4 +162,25 @@ test('test history has the same manual-copy fallback as other review data', asyn
   assert.equal(page.element('testHistoryManualCopy').value, '[{"testId":"example"}]');
   await page.callback(null);
   assert.equal(page.element('testHistoryManualCopy').value, '');
+});
+
+
+test('history updates automatically and detached account listeners cannot leak stale records', async () => {
+  const page = await loadPage();
+  await page.element('signIn').handlers.click();
+  const first = page.historyListeners[0];
+  assert.equal(first.reference, 'pushTests/alice');
+  first.handler({ val: () => ({ example: { testId: 'example', createdAt: 123, response: { action: 'yes' } } }) });
+  assert.match(page.element('testHistory').textContent, /"action": "yes"/);
+  assert.equal(page.element('copyTestHistory').disabled, false);
+  assert.match(page.element('testHistoryLive').textContent, /Live updates enabled/);
+  page.auth.currentUser = { uid: 'bob' };
+  await page.callback(page.auth.currentUser);
+  assert.equal(first.stopped, true);
+  first.handler({ val: () => ({ private: { testId: 'old-account-record', createdAt: 456 } }) });
+  assert.doesNotMatch(page.element('testHistory').textContent, /old-account-record/);
+  page.auth.currentUser = null;
+  await page.callback(null);
+  assert.equal(page.historyListeners[1].stopped, true);
+  assert.equal(page.element('testHistory').textContent, '');
 });

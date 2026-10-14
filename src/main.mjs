@@ -28,6 +28,8 @@ let subscriptionSaved = false;
 let authReady = false;
 let syncing = 0;
 let databaseConnected = false;
+let stopHistory;
+let historyGeneration = 0;
 
 function currentKeyMatches() {
   const existing = subscription?.options.applicationServerKey;
@@ -181,14 +183,40 @@ sendButton.addEventListener('click', () => perform(async () => {
   await sendMyTestNotification(auth.currentUser, subscription);
   status.textContent = 'The push service accepted your test notification. Check your device notifications.';
 }, 'Send test notification'));
+function historyQuery(uid) {
+  return query(ref(database, `pushTests/${uid}`), orderByChild('createdAt'), limitToLast(20));
+}
+function showHistory(snapshot) {
+  const records = Object.values(snapshot.val() || {}).sort((a, b) => b.createdAt - a.createdAt);
+  document.getElementById('testHistory').textContent = records.length ? JSON.stringify(records, null, 2) : 'No recorded tests yet.';
+  document.getElementById('testHistoryLive').textContent = 'Live updates enabled. New tests and recorded replies appear automatically.';
+  document.getElementById('testHistoryManualCopy').value = '';
+  document.getElementById('testHistoryManualCopy').hidden = true;
+  render();
+}
+function watchHistory(user) {
+  if (stopHistory) stopHistory();
+  stopHistory = null;
+  const generation = ++historyGeneration;
+  document.getElementById('testHistoryLive').textContent = user ? 'Connecting to test history…' : 'Sign in to see live test history.';
+  if (!user) return;
+  stopHistory = onValue(historyQuery(user.uid), snapshot => {
+    if (generation !== historyGeneration || auth.currentUser?.uid !== user.uid) return;
+    showHistory(snapshot);
+  }, error => {
+    if (generation !== historyGeneration || auth.currentUser?.uid !== user.uid) return;
+    document.getElementById('testHistoryLive').textContent = 'Live history could not connect. Check Diagnostics and use Refresh test history to retry.';
+    diagnostics.record('Live test history failed', error);
+  });
+}
 document.getElementById('loadTestHistory').addEventListener('click', () => perform(async () => {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Sign in to review your tests.');
-  const snapshot = await withTimeout(get(query(ref(database, `pushTests/${uid}`), orderByChild('createdAt'), limitToLast(20))),
+  watchHistory(auth.currentUser);
+  const snapshot = await withTimeout(get(historyQuery(uid)),
     'Loading test history timed out. Check the database connection.');
   if (auth.currentUser?.uid !== uid) return;
-  const records = Object.values(snapshot.val() || {}).sort((a, b) => b.createdAt - a.createdAt);
-  document.getElementById('testHistory').textContent = records.length ? JSON.stringify(records, null, 2) : 'No recorded tests yet.';
+  showHistory(snapshot);
 }, 'Load test history'));
 async function loadBackendKey() {
   serverPublicKey = await loadPushPublicKey();
@@ -223,6 +251,7 @@ onAuthStateChanged(auth, async user => {
   document.getElementById('testHistoryManualCopy').value = '';
   document.getElementById('testHistoryManualCopy').hidden = true;
   document.getElementById('testHistoryFeedback').textContent = '';
+  watchHistory(user);
   diagnostics.record(user ? 'Auth state: signed in' : 'Auth state: signed out');
   subscription = null;
   subscriptionSaved = false;

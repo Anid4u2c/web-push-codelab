@@ -53,6 +53,7 @@
     <details id="testReview">
       <summary>Test notification history</summary>
       <p>Review your latest 20 tests and Yes/No responses. IDs identify browser subscriptions, not physical devices. A response mismatch compares reported IDs; it does not establish intent or independently verify hardware.</p>
+      <p id="testHistoryLive" role="status" aria-live="polite">Sign in to see live test history.</p>
       <button id="loadTestHistory" type="button">Refresh test history</button>
       <button id="copyTestHistory" type="button" class="copy-button" aria-label="Copy test notification history" disabled><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span>Copy</span></button>
       <pre id="testHistory"></pre>
