@@ -2,7 +2,7 @@
 
 A small browser push-notification demo hosted on Firebase. The app uses the Push API and a service worker to receive messages, display notifications, and return users to the site.
 
-Primary site: **https://web-push-4u2c.web.app**. The alternate Firebase Hosting domain, **https://web-push-4u2c.firebaseapp.com**, remains available. Authentication sessions and push subscriptions are specific to each origin.
+Hosting URLs use your project ID: **https://PROJECT_ID.web.app**. The alternate Firebase Hosting domain, **https://PROJECT_ID.firebaseapp.com**, remains available. Authentication sessions and push subscriptions are specific to each origin.
 
 ## Development
 
@@ -33,25 +33,25 @@ If an existing browser subscription used an older manually supplied key, choose 
 
 ## Deployment
 
-GitHub Actions runs tests on pull requests and pushes to `master`. A successful push to `master` deploys **the push backend and database rules before Hosting** to project `web-push-4u2c`. The release stops if backend setup, functions, or rules cannot be deployed. The workflow can also be started manually on `master`.
+GitHub Actions runs tests on pull requests and pushes to `master`. A successful push to `master` deploys **the push backend and database rules before Hosting** to project `PROJECT_ID`. The release stops if backend setup, functions, or rules cannot be deployed. The workflow can also be started manually on `master`.
 
-The repository secret `FIREBASE_SERVICE_ACCOUNT` supplies the deployment credential for `github-deploy@web-push-4u2c.iam.gserviceaccount.com`. Keep the credential in GitHub Actions secrets; never commit its JSON key. The deployment account has Firebase Hosting Admin; it also needs **Firebase Realtime Database Admin** (`roles/firebasedatabase.admin`) to publish rules. Actions are pinned to commit IDs, and pull requests cannot run the production deployment job.
+The repository secret `FIREBASE_SERVICE_ACCOUNT` supplies the deployment credential for `DEPLOY_ACCOUNT@PROJECT_ID.iam.gserviceaccount.com`. Keep the credential in GitHub Actions secrets; never commit its JSON key. The deployment account has Firebase Hosting Admin; it also needs **Firebase Realtime Database Admin** (`roles/firebasedatabase.admin`) to publish rules. Actions are pinned to commit IDs, and pull requests cannot run the production deployment job.
 
 CI runs the unit tests, build, and database emulator tests before deployment. The deploy job writes its credential to a temporary restricted file and removes it after use. Functions deploy from the `functions/` codebase before the app is published. Existing legacy database data is not deleted, but the new rules make global `/subscription/` and `/publicKey/` records inaccessible to clients.
 
 ### Configure from Google Cloud Shell
 
-Use [Cloud Shell](https://console.cloud.google.com/?cloudshell=true&project=web-push-4u2c) while signed in as a project administrator. Blaze billing must already be enabled. In a fresh Cloud Shell checkout, run:
+Use [Cloud Shell](https://console.cloud.google.com/?cloudshell=true) while signed in as a project administrator. Blaze billing must already be enabled. In a fresh Cloud Shell checkout, run:
 
 ```sh
-git clone https://github.com/Anid4u2c/web-push-codelab.git
-cd web-push-codelab
+git clone <REPOSITORY_URL>
+cd <CHECKOUT_DIRECTORY>
 node scripts/setup-gcp.mjs
 ```
 
 If you already have a checkout, enter it and run `git pull --ff-only` first. The setup script uses Node.js and the Cloud Shell `gcloud` login; no npm installation or downloaded service-account key is needed.
 
-The script asks for the project ID, runtime account ID (default **runtime**), deployment account ID (default **github-deploy**) and Secret Manager name (default **WEB_PUSH_VAPID**). Press Enter to keep a default. It targets this app's existing project; migrating to another project requires updating the Firebase client, database and workflow separately.
+Enter your project ID explicitly; the script does not display a saved project ID. It also asks for runtime account ID (default **runtime**), deployment account ID (default **github-deploy**) and Secret Manager name (default **WEB_PUSH_VAPID**). Press Enter to keep a default. It targets this app's existing project; migrating to another project requires updating the Firebase client, database and workflow separately.
 
 Before applying changes, it checks billing, lists existing accounts and secrets, and shows a plan for confirmation. It reuses existing resources and preserves secret versions and IAM bindings. Permission errors stop setup rather than being treated as missing resources. If the Secret Manager API is disabled, it checks for the secret after enabling the API and before creating anything. Interrupted setup can be rerun; earlier successful changes remain in place.
 
@@ -72,25 +72,25 @@ If the file is unchanged, skip the commit and rerun the deployment workflow on `
 
 The Cloud Shell script performs these steps. They are also available manually:
 
-1. **Billing and APIs.** Blaze billing is enabled. In [APIs & Services](https://console.cloud.google.com/apis/library?project=web-push-4u2c), enable Cloud Functions, Cloud Build, Artifact Registry, Cloud Run, IAM and Secret Manager APIs.
-2. **Runtime identity.** Use the existing `runtime@web-push-4u2c.iam.gserviceaccount.com`. Grant it Firebase Realtime Database Admin (`roles/firebasedatabase.admin`) on the project. This account runs the functions; it does not need Hosting or Functions deployment roles.
-3. **Allow deployment to use runtime.** Open [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts?project=web-push-4u2c), select **runtime**, then **Permissions → Grant access**. Add `github-deploy@web-push-4u2c.iam.gserviceaccount.com` as principal with **Service Account User** (`roles/iam.serviceAccountUser`). Apply this grant to the runtime account itself. Service Account Token Creator is not required for this deployment.
-4. **Deployment permissions.** In [project IAM](https://console.cloud.google.com/iam-admin/iam?project=web-push-4u2c), the `github-deploy` account needs Firebase Hosting Admin, Firebase Realtime Database Admin, Cloud Functions Developer (`roles/cloudfunctions.developer`) and Cloud Run Admin (`roles/run.admin`). The Cloud Shell administrator creates the secret container and grants the deployment account Secret Manager Admin (`roles/secretmanager.admin`) on that secret only. If relying on the deployment job to create the container instead, it needs project-level secret creation permissions initially. Do not grant Owner or Editor.
+1. **Billing and APIs.** Enable Blaze billing. In [APIs & Services](https://console.cloud.google.com/apis/library), enable Cloud Functions, Cloud Build, Artifact Registry, Cloud Run, IAM and Secret Manager APIs.
+2. **Runtime identity.** Use your selected runtime service account (`RUNTIME_ACCOUNT@PROJECT_ID.iam.gserviceaccount.com`). Grant it Firebase Realtime Database Admin (`roles/firebasedatabase.admin`) on the project. This account runs the functions; it does not need Hosting or Functions deployment roles.
+3. **Allow deployment to use runtime.** Open [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts), select your runtime account, then **Permissions → Grant access**. Add `DEPLOY_ACCOUNT@PROJECT_ID.iam.gserviceaccount.com` as principal with **Service Account User** (`roles/iam.serviceAccountUser`). Apply this grant to the runtime account itself. Service Account Token Creator is not required for this deployment.
+4. **Deployment permissions.** In [project IAM](https://console.cloud.google.com/iam-admin/iam), the selected deployment account needs Firebase Hosting Admin, Firebase Realtime Database Admin, Cloud Functions Developer (`roles/cloudfunctions.developer`) and Cloud Run Admin (`roles/run.admin`). The Cloud Shell administrator creates the secret container and grants the deployment account Secret Manager Admin (`roles/secretmanager.admin`) on that secret only. If relying on the deployment job to create the container instead, it needs project-level secret creation permissions initially. Do not grant Owner or Editor.
 5. **GitHub credential.** Keep the existing repository Actions secret **`FIREBASE_SERVICE_ACCOUNT`** containing the deployment account's JSON credential. No additional GitHub VAPID secret is needed.
-6. **Run deployment.** Push to `master`, or open [GitHub Actions](https://github.com/Anid4u2c/web-push-codelab/actions), select **Validate and deploy Firebase push demo**, and choose **Run workflow** on `master`. Check the preparation and function deployment steps before expecting the new Hosting UI.
+6. **Run deployment.** Push to `master`, or open [GitHub Actions](../../actions), select **Validate and deploy Firebase push demo**, and choose **Run workflow** on `master`. Check the preparation and function deployment steps before expecting the new Hosting UI.
 
 ### Where `WEB_PUSH_VAPID` belongs
 
-`WEB_PUSH_VAPID` is a **Google Cloud Secret Manager secret** in project `web-push-4u2c`, not a GitHub Actions secret or a browser environment variable. Its default name is `WEB_PUSH_VAPID` (or the name chosen in setup): do not add a `VITE_` or `FIREBASE_` prefix.
+`WEB_PUSH_VAPID` is a **Google Cloud Secret Manager secret** in project `PROJECT_ID`, not a GitHub Actions secret or a browser environment variable. Its default name is `WEB_PUSH_VAPID` (or the name chosen in setup): do not add a `VITE_` or `FIREBASE_` prefix.
 
 **You do not need to create or paste a key.** Cloud Shell creates an empty secret container. With the permissions above, `scripts/prepare-push.mjs` performs the setup automatically during deployment:
 
 1. Creates the Secret Manager secret if it does not exist.
 2. Generates a matching VAPID public/private key pair and stores it as a JSON secret version only when no version exists. Values stay in memory during creation and are not printed or written to a local key file.
 3. Validates an existing pair and preserves it on later deployments.
-4. Grants `runtime@web-push-4u2c.iam.gserviceaccount.com` **Secret Manager Secret Accessor** (`roles/secretmanager.secretAccessor`) on this secret. The functions bind the secret at runtime and expose only its public key to the page.
+4. Grants `RUNTIME_ACCOUNT@PROJECT_ID.iam.gserviceaccount.com` **Secret Manager Secret Accessor** (`roles/secretmanager.secretAccessor`) on this secret. The functions bind the secret at runtime and expose only its public key to the page.
 
-After successful preparation, open [Secret Manager](https://console.cloud.google.com/security/secret-manager?project=web-push-4u2c). Verify that **WEB_PUSH_VAPID** has an enabled version and that its **Permissions** include the runtime account as Secret Accessor. You do not need to reveal the value. Avoid manually adding an empty version or a lone public key; the backend expects JSON containing both `publicKey` and `privateKey`. Do not replace the pair on routine deployments, because existing browser subscriptions depend on its public key.
+After successful preparation, open [Secret Manager](https://console.cloud.google.com/security/secret-manager). Verify that **WEB_PUSH_VAPID** has an enabled version and that its **Permissions** include the runtime account as Secret Accessor. You do not need to reveal the value. Avoid manually adding an empty version or a lone public key; the backend expects JSON containing both `publicKey` and `privateKey`. Do not replace the pair on routine deployments, because existing browser subscriptions depend on its public key.
 
 If preparation reports permission denied, fix the named account's access and rerun the workflow. If an existing secret version is disabled, enable it; do not generate a replacement pair. Never paste private keys into the browser, chat, repository or cloud development environment.
 
@@ -107,7 +107,7 @@ Google popup authentication can emit COOP `window.closed` warnings while Firebas
 This is a legacy demo, not yet a complete authenticated PWA:
 
 - Subscriptions are stored at `/subscriptions/{uid}/{endpointHash}`. Rules deny unauthenticated and cross-user access. Deploy the new rules before using this client; the workflow enforces that order. Legacy records may need administrator cleanup after a backup.
-- Google sign-in is integrated; anonymous provider enablement does not automatically sign users in. Sign-out unsubscribes this browser and deletes its owned record. Google sign-in allows self-tests on that user’s devices only. Keep both hosting domains authorized. Authentication uses `web.app` by default and `firebaseapp.com` only when that domain is opened intentionally. In the Google OAuth web client, authorize both redirect URIs: `https://web-push-4u2c.web.app/__/auth/handler` and `https://web-push-4u2c.firebaseapp.com/__/auth/handler`. Firebase authorized domains and Google OAuth redirect URIs are separate settings.
+- Google sign-in is integrated; anonymous provider enablement does not automatically sign users in. Sign-out unsubscribes this browser and deletes its owned record. Google sign-in allows self-tests on that user’s devices only. Keep both hosting domains authorized. Authentication uses `web.app` by default and `firebaseapp.com` only when that domain is opened intentionally. In the Google OAuth web client, authorize both redirect URIs: `https://PROJECT_ID.web.app/__/auth/handler` and `https://PROJECT_ID.firebaseapp.com/__/auth/handler`. Firebase authorized domains and Google OAuth redirect URIs are separate settings.
 - Firebase SDK 13 is bundled with esbuild, and copying uses the native Clipboard API. All styles and icons are hosted locally; no Material Design Lite CDN is required. JavaScript and stylesheet filenames are versioned per build to avoid stale assets.
 - The manifest, install experience, and offline strategy remain to be implemented. The sender supports self-tests only; there is no broadcast or arbitrary-message endpoint.
 - Glitch project hosting has ended; the active app no longer links to its companion site. The original companion-site links and embedded keys in `completed/` are historical examples. The live app gets its public key from the backend; the private key is never returned to the browser.

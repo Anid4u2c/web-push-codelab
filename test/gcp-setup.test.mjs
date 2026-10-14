@@ -5,13 +5,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 
-async function runSetup(mode, answers = ['', '', '', '', 'y']) {
+async function runSetup(mode, answers = ['demo-push-project', '', '', '', 'y']) {
   const directory = await mkdtemp(join(tmpdir(), 'push-setup-'));
   try {
     await mkdir(join(directory, 'scripts'));
     await mkdir(join(directory, 'functions'));
     await copyFile(new URL('../scripts/setup-gcp.mjs', import.meta.url), join(directory, 'scripts/setup-gcp.mjs'));
-    await copyFile(new URL('../functions/deployment-config.json', import.meta.url), join(directory, 'functions/deployment-config.json'));
+    await writeFile(join(directory, 'functions/deployment-config.json'), JSON.stringify({ projectId: 'demo-push-project', runtimeAccountId: 'private-runtime', deploymentAccountId: 'private-deploy', vapidSecretName: 'PRIVATE_SECRET' }));
     const log = join(directory, 'calls.jsonl');
     await writeFile(join(directory, 'gcloud'), `#!/usr/bin/env node
 const fs = require('node:fs');
@@ -20,11 +20,11 @@ fs.appendFileSync(process.env.CALL_LOG, JSON.stringify(args) + '\\n');
 const starts = text => args.slice(0, text.split(' ').length).join(' ') === text;
 let result = {};
 if (starts('billing projects describe')) result = { billingEnabled: true };
-if (starts('iam service-accounts list')) result = process.env.MODE === 'missing' ? [] : ['runtime', 'github-deploy'].map(id => ({ email: id + '@web-push-4u2c.iam.gserviceaccount.com' }));
+if (starts('iam service-accounts list')) result = process.env.MODE === 'missing' ? [] : ['runtime', 'github-deploy'].map(id => ({ email: id + '@demo-push-project.iam.gserviceaccount.com' }));
 if (starts('services list')) result = process.env.MODE === 'missing' ? [] : [{ config: { name: 'secretmanager.googleapis.com' } }];
 if (starts('secrets list')) {
   if (process.env.MODE === 'denied') { console.error('Permission denied'); process.exit(1); }
-  result = process.env.MODE === 'missing' ? [] : [{ name: 'projects/589537879159/secrets/WEB_PUSH_VAPID' }];
+  result = process.env.MODE === 'missing' ? [] : [{ name: 'projects/123456789012/secrets/WEB_PUSH_VAPID' }];
 }
 console.log(JSON.stringify(result));
 `, { mode: 0o755 });
@@ -55,14 +55,15 @@ const starts = (args, text) => args.slice(0, text.split(' ').length).join(' ') =
 test('Cloud Shell setup reuses existing resources and scopes identity/secret grants', async () => {
   const result = await runSetup('existing');
   assert.equal(result.code, 0, result.output);
+  assert.doesNotMatch(result.output, /demo-push-project|private-runtime|private-deploy|PRIVATE_SECRET/);
   assert.equal(result.calls.some(args => starts(args, 'iam service-accounts create') || starts(args, 'secrets create')), false);
-  assert.equal(result.calls.some(args => args.includes('--role=roles/iam.serviceAccountUser') && args.includes('runtime@web-push-4u2c.iam.gserviceaccount.com')), true);
+  assert.equal(result.calls.some(args => args.includes('--role=roles/iam.serviceAccountUser') && args.includes('runtime@demo-push-project.iam.gserviceaccount.com')), true);
   assert.equal(result.calls.some(args => starts(args, 'projects add-iam-policy-binding') && args.includes('--role=roles/secretmanager.admin')), false);
   assert.equal(result.calls.some(args => args.includes('versions') || args.includes('keys')), false);
 });
 
 test('Cloud Shell setup checks after API enablement and creates missing selected names', async () => {
-  const result = await runSetup('missing', ['', 'push-runtime', 'push-deploy', 'CUSTOM_VAPID', 'y']);
+  const result = await runSetup('missing', ['demo-push-project', 'push-runtime', 'push-deploy', 'CUSTOM_VAPID', 'y']);
   assert.equal(result.code, 0, result.output);
   assert.equal(result.calls.filter(args => starts(args, 'iam service-accounts create')).length, 2);
   assert.equal(result.calls.filter(args => starts(args, 'secrets create')).length, 1);
@@ -80,7 +81,7 @@ test('Cloud Shell setup stops on lookup permission denial without creating anyth
 });
 
 test('Cloud Shell setup cancellation applies no changes', async () => {
-  const result = await runSetup('existing', ['', '', '', '', 'n']);
+  const result = await runSetup('existing', ['demo-push-project', '', '', '', 'n']);
   assert.equal(result.code, 0, result.output);
   assert.equal(result.calls.some(args => args.includes('create') || args.includes('add-iam-policy-binding') || args.includes('enable')), false);
 });
