@@ -32,7 +32,9 @@ try {
   const secretId = await ask('VAPID Secret Manager name', 'WEB_PUSH_VAPID', /^[A-Za-z0-9_-]{1,255}$/);
   const runtime = `${runtimeId}@${project}.iam.gserviceaccount.com`;
   const deploy = `${deployId}@${project}.iam.gserviceaccount.com`;
-  gcloud('projects', 'describe', project);
+  const projectMetadata = gcloud('projects', 'describe', project);
+  const projectNumber = String(projectMetadata.projectNumber || '');
+  if (!/^\d+$/.test(projectNumber)) throw new Error('Could not determine the selected project number.');
   const billing = gcloud('billing', 'projects', 'describe', project);
   if (!billing.billingEnabled) throw new Error('Enable project billing before running setup.');
   // List operations distinguish an absent resource from a denied lookup. Never create on a permission error.
@@ -43,6 +45,14 @@ try {
   const accountExists = email => accounts.some(account => account.email === email);
   const defaultAccount = `${project}@appspot.gserviceaccount.com`;
   const defaultExists = accountExists(defaultAccount);
+  const computeAccount = `${projectNumber}-compute@developer.gserviceaccount.com`;
+  const computeExists = accountExists(computeAccount);
+  if (accounts.find(account => account.email === computeAccount)?.disabled) {
+    throw new Error('Enable the existing default Compute service account before deploying.');
+  }
+  console.log(computeExists
+    ? 'Existing default Compute account: include the function build identity permission grant.'
+    : 'No default Compute account found; no default account will be created.');
   if (accounts.find(account => account.email === defaultAccount)?.disabled) {
     throw new Error('Enable the existing default App Engine service account before deploying with this Firebase CLI.');
   }
@@ -56,7 +66,7 @@ try {
   }
   const hasSecret = list => list.some(secret => secret.name.split('/').at(-1) === secretId);
   console.log(`${secrets ? (hasSecret(secrets) ? 'Reuse' : 'Create empty secret container') : 'Check after enabling Secret Manager API, then reuse or create empty container'}: ${secretId}`);
-  console.log(`\nPlan: enable required APIs; grant the runtime account Database Admin and secret-specific Secret Accessor; grant the deployment account Hosting Admin, Database Admin, Functions Admin, Cloud Run Admin, Service Account User on runtime and the existing default App Engine account, and secret-specific Secret Manager Admin. Existing policies and secret versions are preserved.`);
+  console.log(`\nPlan: enable required APIs; grant the runtime account Database Admin and secret-specific Secret Accessor; grant the deployment account Hosting Admin, Database Admin, Functions Admin, Cloud Run Admin, Service Account User on runtime and existing default App Engine and Compute accounts, and secret-specific Secret Manager Admin. Existing policies and secret versions are preserved.`);
   if ((await prompt.question('Apply these changes? [y/N]: ')).trim().toLowerCase() !== 'y') {
     console.log('Cancelled. No changes applied.');
   } else {
@@ -76,7 +86,7 @@ try {
     for (const role of ['roles/firebasehosting.admin', 'roles/firebasedatabase.admin', 'roles/cloudfunctions.admin', 'roles/run.admin']) {
       projectRole(deploy, role);
     }
-    for (const account of new Set([runtime, ...(defaultExists ? [defaultAccount] : [])])) {
+    for (const account of new Set([runtime, ...(defaultExists ? [defaultAccount] : []), ...(computeExists ? [computeAccount] : [])])) {
       gcloud('iam', 'service-accounts', 'add-iam-policy-binding', account, '--project', project,
         `--member=serviceAccount:${deploy}`, '--role=roles/iam.serviceAccountUser', '--condition=None');
     }

@@ -19,9 +19,10 @@ const args = process.argv.slice(2);
 fs.appendFileSync(process.env.CALL_LOG, JSON.stringify(args) + '\\n');
 const starts = text => args.slice(0, text.split(' ').length).join(' ') === text;
 let result = {};
+if (starts('projects describe')) result = { projectNumber: '123456789012' };
 if (starts('config list project')) result = process.env.MODE === 'active' ? { core: { project: 'demo-push-project' } } : {};
 if (starts('billing projects describe')) result = { billingEnabled: true };
-if (starts('iam service-accounts list')) result = process.env.MODE === 'missing' ? [] : ['runtime', 'github-deploy'].map(id => ({ email: id + '@demo-push-project.iam.gserviceaccount.com' })).concat([{ email: 'demo-push-project@appspot.gserviceaccount.com' }]);
+if (starts('iam service-accounts list')) result = process.env.MODE === 'missing' ? [] : ['runtime', 'github-deploy'].map(id => ({ email: id + '@demo-push-project.iam.gserviceaccount.com' })).concat([{ email: 'demo-push-project@appspot.gserviceaccount.com' }, { email: '123456789012-compute@developer.gserviceaccount.com' }]);
 if (starts('services list')) result = process.env.MODE === 'missing' ? [] : [{ config: { name: 'secretmanager.googleapis.com' } }];
 if (starts('secrets list')) {
   if (process.env.MODE === 'denied') { console.error('Permission denied'); process.exit(1); }
@@ -60,6 +61,9 @@ test('Cloud Shell setup reuses existing resources and scopes identity/secret gra
   assert.equal(result.calls.some(args => starts(args, 'iam service-accounts create') || starts(args, 'secrets create')), false);
   assert.equal(result.calls.some(args => args.includes('--role=roles/iam.serviceAccountUser') && args.includes('runtime@demo-push-project.iam.gserviceaccount.com')), true);
   assert.equal(result.calls.some(args => starts(args, 'iam service-accounts add-iam-policy-binding') && args.includes('demo-push-project@appspot.gserviceaccount.com') && args.includes('--role=roles/iam.serviceAccountUser')), true);
+  assert.ok(result.calls.some(args => starts(args, 'iam service-accounts add-iam-policy-binding')
+    && args.includes('123456789012-compute@developer.gserviceaccount.com')
+    && args.includes('--role=roles/iam.serviceAccountUser')));
   assert.equal(result.calls.some(args => starts(args, 'projects add-iam-policy-binding') && args.includes('--role=roles/secretmanager.admin')), false);
   assert.equal(result.calls.some(args => args.includes('versions') || args.includes('keys')), false);
   assert.ok(result.calls.some(args => starts(args, 'projects add-iam-policy-binding')
@@ -79,6 +83,7 @@ test('Cloud Shell setup checks after API enablement and creates missing selected
   }
   assert.ok(result.calls.findIndex(args => starts(args, 'secrets list')) > result.calls.findIndex(args => starts(args, 'services enable')));
   assert.equal(result.calls.some(args => args.includes('demo-push-project@appspot.gserviceaccount.com')), false);
+  assert.equal(result.calls.some(args => args.includes('123456789012-compute@developer.gserviceaccount.com')), false);
   assert.equal(result.config.runtimeAccountId, 'push-runtime');
   assert.equal(result.config.deploymentAccountId, 'push-deploy');
   assert.equal(result.config.vapidSecretName, 'CUSTOM_VAPID');
