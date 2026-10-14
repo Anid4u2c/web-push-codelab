@@ -68,6 +68,10 @@ test('Cloud Shell setup checks after API enablement and creates missing selected
   assert.equal(result.code, 0, result.output);
   assert.equal(result.calls.filter(args => starts(args, 'iam service-accounts create')).length, 2);
   assert.equal(result.calls.filter(args => starts(args, 'secrets create')).length, 1);
+  const enabledApis = result.calls.find(args => starts(args, 'services enable'));
+  for (const api of ['eventarc.googleapis.com', 'pubsub.googleapis.com', 'storage.googleapis.com', 'firebaseextensions.googleapis.com']) {
+    assert.ok(enabledApis.includes(api), `Setup must enable ${api} before CI deployment.`);
+  }
   assert.ok(result.calls.findIndex(args => starts(args, 'secrets list')) > result.calls.findIndex(args => starts(args, 'services enable')));
   assert.equal(result.calls.some(args => args.includes('demo-push-project@appspot.gserviceaccount.com')), false);
   assert.equal(result.config.runtimeAccountId, 'push-runtime');

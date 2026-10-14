@@ -58,7 +58,9 @@ try {
   } else {
     gcloud('services', 'enable', 'cloudfunctions.googleapis.com', 'cloudbuild.googleapis.com',
       'artifactregistry.googleapis.com', 'run.googleapis.com', 'iam.googleapis.com',
-      'secretmanager.googleapis.com', 'firebasehosting.googleapis.com', 'firebasedatabase.googleapis.com', '--project', project);
+      'secretmanager.googleapis.com', 'firebasehosting.googleapis.com', 'firebasedatabase.googleapis.com',
+      'firebaseextensions.googleapis.com', 'eventarc.googleapis.com', 'pubsub.googleapis.com',
+      'storage.googleapis.com', '--project', project);
     for (const [id, email] of [[runtimeId, runtime], [deployId, deploy]]) {
       if (!accountExists(email)) gcloud('iam', 'service-accounts', 'create', id, '--project', project);
     }
