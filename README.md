@@ -51,7 +51,7 @@ node scripts/setup-gcp.mjs
 
 If you already have a checkout, enter it and run `git pull --ff-only` first. The setup script uses Node.js and the Cloud Shell `gcloud` login; no npm installation or downloaded service-account key is needed.
 
-Enter your project ID explicitly; the script does not display a saved project ID. It also asks for runtime account ID (default **runtime**), deployment account ID (default **github-deploy**) and Secret Manager name (default **WEB_PUSH_VAPID**). Press Enter to keep a default. It targets this app's existing project; migrating to another project requires updating the Firebase client, database and workflow separately.
+The script offers the active `gcloud` project as the project ID default. Press Enter to accept it, or enter another ID. If no project is selected, an explicit ID is required. It does not use the repository’s saved project ID as the prompt default. It also asks for runtime account ID (default **runtime**), deployment account ID (default **github-deploy**) and Secret Manager name (default **WEB_PUSH_VAPID**). Press Enter to keep a default. It targets this app's existing project; migrating to another project requires updating the Firebase client, database and workflow separately.
 
 Before applying changes, it checks billing, lists existing accounts and secrets, and shows a plan for confirmation. It reuses existing resources and preserves secret versions and IAM bindings. Permission errors stop setup rather than being treated as missing resources. If the Secret Manager API is disabled, it checks for the secret after enabling the API and before creating anything. Interrupted setup can be rerun; earlier successful changes remain in place.
 

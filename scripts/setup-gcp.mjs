@@ -20,7 +20,11 @@ async function ask(label, fallback, pattern) {
 
 try {
   console.log('Run in Google Cloud Shell as a project administrator. This configures the selected cloud project; it does not create credentials or reveal secret values.');
-  const project = await ask('Project ID', '', /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/);
+  const selectedProject = gcloud('config', 'list', 'project')?.core?.project;
+  const projectPattern = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
+  const projectDefault = typeof selectedProject === 'string' && projectPattern.test(selectedProject)
+    ? selectedProject : '';
+  const project = await ask('Project ID', projectDefault, projectPattern);
   if (project !== config.projectId) throw new Error('The selected project does not match deployment configuration. Configure the app and workflow for the selected project before proceeding.');
   const runtimeId = await ask('Runtime service account ID', 'runtime', /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/);
   const deployId = await ask('Deployment service account ID', 'github-deploy', /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/);

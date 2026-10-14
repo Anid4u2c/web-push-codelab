@@ -19,6 +19,7 @@ const args = process.argv.slice(2);
 fs.appendFileSync(process.env.CALL_LOG, JSON.stringify(args) + '\\n');
 const starts = text => args.slice(0, text.split(' ').length).join(' ') === text;
 let result = {};
+if (starts('config list project')) result = process.env.MODE === 'active' ? { core: { project: 'demo-push-project' } } : {};
 if (starts('billing projects describe')) result = { billingEnabled: true };
 if (starts('iam service-accounts list')) result = process.env.MODE === 'missing' ? [] : ['runtime', 'github-deploy'].map(id => ({ email: id + '@demo-push-project.iam.gserviceaccount.com' })).concat([{ email: 'demo-push-project@appspot.gserviceaccount.com' }]);
 if (starts('services list')) result = process.env.MODE === 'missing' ? [] : [{ config: { name: 'secretmanager.googleapis.com' } }];
@@ -90,4 +91,11 @@ test('Cloud Shell setup cancellation applies no changes', async () => {
   const result = await runSetup('existing', ['demo-push-project', '', '', '', 'n']);
   assert.equal(result.code, 0, result.output);
   assert.equal(result.calls.some(args => args.includes('create') || args.includes('add-iam-policy-binding') || args.includes('enable')), false);
+});
+
+test('Cloud Shell setup uses the active gcloud project when Enter is pressed', async () => {
+  const result = await runSetup('active', ['', '', '', '', 'y']);
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /Project ID \[demo-push-project\]/);
+  assert.ok(result.calls.some(args => starts(args, 'projects describe') && args.includes('demo-push-project')));
 });
