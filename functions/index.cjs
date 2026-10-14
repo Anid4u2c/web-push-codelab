@@ -24,7 +24,7 @@ const handlers = createHandlers({
 const options = {
   region: 'us-central1', memory: '256MiB', maxInstances: 1, concurrency: 10,
   timeoutSeconds: 15, invoker: 'public', secrets: [vapid],
-  serviceAccount: 'web-push-runtime@web-push-4u2c.iam.gserviceaccount.com'
+  serviceAccount: 'runtime@web-push-4u2c.iam.gserviceaccount.com'
 };
 exports.pushConfig = onRequest(options, handlers.config);
 exports.testPush = onRequest(options, handlers.sendTest);

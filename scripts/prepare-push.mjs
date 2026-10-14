@@ -3,7 +3,7 @@ import push from '../functions/push.cjs';
 import { GoogleAuth } from 'google-auth-library';
 
 const project = 'web-push-4u2c';
-const runtime = `web-push-runtime@${project}.iam.gserviceaccount.com`;
+const runtime = `runtime@${project}.iam.gserviceaccount.com`;
 const secretName = `projects/${project}/secrets/WEB_PUSH_VAPID`;
 const client = await new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] }).getClient();
 const request = (url, method = 'GET', data) => client.request({ url, method, data });

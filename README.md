@@ -41,11 +41,27 @@ CI runs the unit tests, build, and database emulator tests before deployment. Th
 
 ### One-time backend prerequisites
 
-- Firebase project `web-push-4u2c` must support Cloud Functions deployment (Blaze billing) with Cloud Functions, Cloud Build, Artifact Registry, Cloud Run, IAM and Secret Manager APIs enabled.
-- Create runtime service account `web-push-runtime@web-push-4u2c.iam.gserviceaccount.com` and grant it Firebase Realtime Database Admin. It is separate from the deployment identity and does not need Hosting or Functions deployment roles.
-- Grant `github-deploy@web-push-4u2c.iam.gserviceaccount.com` Service Account User on that runtime account. Function deployment also requires Cloud Functions deployment permissions and Cloud Run permissions to configure public invokers (for example Cloud Functions Developer and Cloud Run Admin), plus the existing Hosting/Database roles.
-- The setup job needs Secret Manager permissions to create and manage `WEB_PUSH_VAPID`, read its version for validation, and grant the runtime account Secret Accessor on that secret. Secret Manager Admin can provision it; once created, scope that role to this secret rather than all project secrets. Do not grant broad Owner or Editor access to the deployment account.
-- Keep using the existing `FIREBASE_SERVICE_ACCOUNT` GitHub secret. No private key needs to be pasted into the browser, chat, repository or cloud development environment.
+1. **Billing and APIs.** Blaze billing is enabled. In [APIs & Services](https://console.cloud.google.com/apis/library?project=web-push-4u2c), enable Cloud Functions, Cloud Build, Artifact Registry, Cloud Run, IAM and Secret Manager APIs.
+2. **Runtime identity.** Use the existing `runtime@web-push-4u2c.iam.gserviceaccount.com`. Grant it Firebase Realtime Database Admin (`roles/firebasedatabase.admin`) on the project. This account runs the functions; it does not need Hosting or Functions deployment roles.
+3. **Allow deployment to use runtime.** Open [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts?project=web-push-4u2c), select **runtime**, then **Permissions → Grant access**. Add `github-deploy@web-push-4u2c.iam.gserviceaccount.com` as principal with **Service Account User** (`roles/iam.serviceAccountUser`). Apply this grant to the runtime account itself. Service Account Token Creator is not required for this deployment.
+4. **Deployment permissions.** In [project IAM](https://console.cloud.google.com/iam-admin/iam?project=web-push-4u2c), the `github-deploy` account needs Firebase Hosting Admin, Firebase Realtime Database Admin, Cloud Functions Developer (`roles/cloudfunctions.developer`) and Cloud Run Admin (`roles/run.admin`). Grant it Secret Manager Admin (`roles/secretmanager.admin`) for initial secret provisioning. Once the secret exists, scope that role to `WEB_PUSH_VAPID` rather than all project secrets. Do not grant Owner or Editor.
+5. **GitHub credential.** Keep the existing repository Actions secret **`FIREBASE_SERVICE_ACCOUNT`** containing the deployment account's JSON credential. No additional GitHub VAPID secret is needed.
+6. **Run deployment.** Push to `master`, or open [GitHub Actions](https://github.com/Anid4u2c/web-push-codelab/actions), select **Validate and deploy Firebase push demo**, and choose **Run workflow** on `master`. Check the preparation and function deployment steps before expecting the new Hosting UI.
+
+### Where `WEB_PUSH_VAPID` belongs
+
+`WEB_PUSH_VAPID` is a **Google Cloud Secret Manager secret** in project `web-push-4u2c`, not a GitHub Actions secret or a browser environment variable. Its name is exactly `WEB_PUSH_VAPID`: do not add a `VITE_` or `FIREBASE_` prefix.
+
+**You do not need to create or paste a key.** With the permissions above, `scripts/prepare-push.mjs` performs the setup automatically during deployment:
+
+1. Creates the Secret Manager secret if it does not exist.
+2. Generates a matching VAPID public/private key pair and stores it as a JSON secret version only when no version exists. Values stay in memory during creation and are not printed or written to a local key file.
+3. Validates an existing pair and preserves it on later deployments.
+4. Grants `runtime@web-push-4u2c.iam.gserviceaccount.com` **Secret Manager Secret Accessor** (`roles/secretmanager.secretAccessor`) on this secret. The functions bind the secret at runtime and expose only its public key to the page.
+
+After successful preparation, open [Secret Manager](https://console.cloud.google.com/security/secret-manager?project=web-push-4u2c). Verify that **WEB_PUSH_VAPID** has an enabled version and that its **Permissions** include the runtime account as Secret Accessor. You do not need to reveal the value. Avoid manually adding an empty version or a lone public key; the backend expects JSON containing both `publicKey` and `privateKey`. Do not replace the pair on routine deployments, because existing browser subscriptions depend on its public key.
+
+If preparation reports permission denied, fix the named account's access and rerun the workflow. If an existing secret version is disabled, enable it; do not generate a replacement pair. Never paste private keys into the browser, chat, repository or cloud development environment.
 
 The setup script checks the runtime identity before making changes. If permissions or prerequisites are missing, the workflow reports the specific setup error and keeps the previously deployed site. Secret creation, function deployment and real push delivery are not established by passing unit tests.
 
