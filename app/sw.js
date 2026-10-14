@@ -21,35 +21,69 @@
 'use strict';
 
 
+self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
+self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+
+async function receiverId() {
+  const subscription = await self.registration.pushManager.getSubscription();
+  if (!subscription) return null;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(subscription.endpoint));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function report(data, action, navigation = 'not requested') {
+  if (!data?.testId || !data?.receiptToken) return;
+  try {
+    await fetch(new URL('api/push/receipt', self.registration.scope), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ testId: data.testId, receiptToken: data.receiptToken,
+        receiverSubscriptionId: data.receiverSubscriptionId ?? null, action,
+        clientTime: Date.now(), navigation }),
+      signal: AbortSignal.timeout(5000)
+    });
+  } catch {
+    // Delivery/click records are best effort. Never log the capability or subscription.
+    console.log('[Service Worker] Receipt could not be submitted.');
+  }
+}
+
 self.addEventListener('push', function(event) {
-  console.log('[Service Worker] Push Received.');
-  const body = (event.data && event.data.text()) || 'Yay it works.';
-
-  const title = 'Push Codelab';
-  const options = {
-    body: body,
-    icon: 'images/icon.png',
-    badge: 'images/badge.png',
-    tag: 'request',
-    actions: [
-      {action: 'yes', title: 'Yes', icon: 'images/yes.png'},
-      {action: 'no', title: 'No', icon: 'images/no.png'}
-    ]
-  };
-
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil((async () => {
+    const text = (event.data && event.data.text()) || 'Yay it works.';
+    let payload;
+    try { payload = JSON.parse(text); } catch { /* Historical senders used plain text. */ }
+    const tracked = payload?.version === 1 && /^[a-f0-9]{32}$/.test(payload.testId)
+      && /^[A-Za-z0-9_-]{43}$/.test(payload.receiptToken);
+    let id = null;
+    if (tracked) {
+      try { id = await receiverId(); } catch { /* Unknown subscription is recorded explicitly. */ }
+    }
+    const data = tracked ? { testId: payload.testId, receiptToken: payload.receiptToken, receiverSubscriptionId: id } : {};
+    await self.registration.showNotification('Push Codelab', {
+      body: tracked ? 'Did you send this test notification from the browser on this device?' : text,
+      icon: 'images/icon.png', badge: 'images/badge.png',
+      tag: tracked ? payload.testId : 'request', data,
+      actions: [{ action: 'yes', title: 'Yes', icon: 'images/yes.png' },
+        { action: 'no', title: 'No', icon: 'images/no.png' }]
+    });
+    await report(data, 'received');
+  })());
 });
 
 self.addEventListener('notificationclick', function(event) {
-  console.log('[Service Worker] Notification click Received.');
-
   event.notification.close();
-
-  event.waitUntil(
-    clients.openWindow(new URL('./', self.registration.scope).href)
-  );
+  event.waitUntil((async () => {
+    const url = new URL('./', self.registration.scope).href;
+    const windows = clients.matchAll ? await clients.matchAll({ type: 'window', includeUncontrolled: true }) : [];
+    const existing = windows.find(client => client.url.split('#')[0] === url);
+    let navigation = 'failed';
+    try {
+      if (existing) { await existing.focus(); navigation = 'existing tab'; }
+      else { await clients.openWindow(url); navigation = 'new tab'; }
+    } catch { /* Preserve the answer even if the browser cannot open the site. */ }
+    await report(event.notification.data, ['yes', 'no'].includes(event.action) ? event.action : 'open', navigation);
+  })());
 });
 
-// There is no subscription-registration backend in this repository.
-// Reconcile the browser subscription when the user next opens the app.
-// Do not renew with a different VAPID key or POST to a nonexistent endpoint.
+// Chrome's own Unsubscribe action is controlled by the browser, not this handler.
+// Reconcile subscriptions when the app is next opened.

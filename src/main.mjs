@@ -1,7 +1,7 @@
 import { withTimeout } from './timeout.mjs';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { getDatabase, onValue, ref, remove, set } from 'firebase/database';
+import { getDatabase, get, query, limitToLast, orderByChild, onValue, ref, remove, set } from 'firebase/database';
 import { createDiagnostics } from './diagnostics.mjs';
 import { firebaseConfig } from './firebase-config.mjs';
 import { loadPushPublicKey, sendMyTestNotification } from './push-api.mjs';
@@ -53,6 +53,8 @@ function render() {
   });
   document.getElementById('notificationHelp').hidden = window.Notification?.permission !== 'denied';
   account.textContent = user ? `Signed in as ${user.displayName || user.email || 'Google user'}` : 'Sign in to manage your subscription.';
+  document.getElementById('loadTestHistory').disabled = !user || pending;
+  if (!user) document.getElementById('testHistory').textContent = '';
   signInButton.hidden = !!user;
   signOutButton.hidden = !user;
   signInButton.disabled = pending || !authReady;
@@ -178,6 +180,15 @@ sendButton.addEventListener('click', () => perform(async () => {
   await sendMyTestNotification(auth.currentUser, subscription);
   status.textContent = 'The push service accepted your test notification. Check your device notifications.';
 }, 'Send test notification'));
+document.getElementById('loadTestHistory').addEventListener('click', () => perform(async () => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in to review your tests.');
+  const snapshot = await withTimeout(get(query(ref(database, `pushTests/${uid}`), orderByChild('createdAt'), limitToLast(20))),
+    'Loading test history timed out. Check the database connection.');
+  if (auth.currentUser?.uid !== uid) return;
+  const records = Object.values(snapshot.val() || {}).sort((a, b) => b.createdAt - a.createdAt);
+  document.getElementById('testHistory').textContent = records.length ? JSON.stringify(records, null, 2) : 'No recorded tests yet.';
+}, 'Load test history'));
 async function loadBackendKey() {
   serverPublicKey = await loadPushPublicKey();
   diagnostics.record('Backend public key loaded');
@@ -207,6 +218,7 @@ async function reconcile(user) {
 
 onAuthStateChanged(auth, async user => {
   authReady = true;
+  document.getElementById('testHistory').textContent = '';
   diagnostics.record(user ? 'Auth state: signed in' : 'Auth state: signed out');
   subscription = null;
   subscriptionSaved = false;

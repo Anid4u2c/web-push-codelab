@@ -96,3 +96,19 @@ test('quota transactions allow only one concurrent send per user and honor the g
     assert.equal(await push.claimQuota(transaction, 'bob', now), false);
   });
 });
+
+
+test('test history is owner-readable and server-write-only; receipt capabilities stay private', async () => {
+  await environment.withSecurityRulesDisabled(async context => {
+    await set(ref(context.database(), 'pushTests/alice/test-one'), { createdAt: 123, senderSubscriptionId: id });
+    await set(ref(context.database(), '_pushTestReceipts/test-one'), { tokenHash: 'private-capability-hash' });
+  });
+  await assertSucceeds(get(ref(database('alice'), 'pushTests/alice')));
+  for (const uid of ['alice', 'bob', null]) {
+    await assertFails(set(ref(database(uid), 'pushTests/alice/test-one'), { createdAt: 456 }));
+    await assertFails(remove(ref(database(uid), 'pushTests/alice/test-one')));
+    await assertFails(get(ref(database(uid), '_pushTestReceipts/test-one')));
+  }
+  await assertFails(get(ref(database('bob'), 'pushTests/alice')));
+  await assertFails(get(ref(database(null), 'pushTests/alice')));
+});

@@ -113,6 +113,16 @@ If preparation reports permission denied, fix the named account's access and rer
 
 The setup script checks the runtime identity before making changes. If permissions or prerequisites are missing, the workflow reports the specific setup error and keeps the previously deployed site. Secret creation, function deployment and real push delivery are not established by passing unit tests.
 
+## Reviewing notification responses
+
+New test notifications ask **Did you send this test notification from the browser on this device?** Yes and No record separate responses; clicking the notification body records an open action. The service worker focuses an existing site tab when available or opens a new one, and records that result.
+
+Expand **Test notification history** and refresh while signed in to review the latest 20 tests for your account. Records include a random test ID, sending/target subscription hashes, creation and expiry times, provider result, the reported receiving subscription hash, browser event time, server recording time, first response, tab-opening result and answer comparison. Raw endpoints, encryption keys, Google ID tokens and receipt capabilities are excluded from history. Records are owner-readable and server-write-only.
+
+Matching subscription IDs support Yes; different IDs support No. Contradictions are labeled **response mismatch**, and missing IDs are not evaluated. A subscription identifies a browser installation, not physical hardware. The server verifies an expiring capability delivered in the encrypted notification; the receiving ID and client time remain client-reported evidence. This is a test review tool, not a tamper-proof device attestation system. The current sender still targets its initiating browser; another-device targeting is not implemented.
+
+Receipts are best effort and may be absent when the browser is offline or terminates the worker. Provider acceptance is not proof of display. Only the first receipt and first click response are retained, and receipt capabilities expire after 24 hours. There is no automatic history purge yet; administrators can remove old `pushTests` and `_pushTestReceipts` records according to their retention needs. Historical notifications cannot gain tracking retroactively. Chrome’s own Unsubscribe action is browser-controlled and does not pass through the Yes/No handler.
+
 ## Diagnostics
 
 Expand **Diagnostics** on the page for the active site/auth domain, authentication state, browser support, notification permission, service-worker state, backend key availability, and subscription presence. Copy, download or clear the latest 20 app events; they stay in memory for this tab and use the browser's local time. Diagnostics exclude account identifiers, credentials and subscription contents. They summarize app events rather than intercepting the browser console. Copy remains available during other operations; when clipboard access fails, a selectable text field appears. Download diagnostics is an alternative. The page explains why push/test controls are disabled and distinguishes a browser subscription from a subscription saved for the signed-in account. Database saves time out with a retry option instead of indefinitely locking controls. A timeout does not cancel a queued database write; a retry writes the same owned device record.

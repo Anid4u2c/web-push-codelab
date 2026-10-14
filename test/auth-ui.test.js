@@ -48,7 +48,7 @@ async function loadPage(hostname = 'web-push-4u2c.web.app', options = {}) {
       async signOut() { auth.currentUser = null; await callback(null); }
     },
     'firebase/database': {
-      getDatabase: () => ({}), onValue: (_ref, handler) => handler({ val: () => false }), ref: (_db, path) => path,
+      getDatabase: () => ({}), get: async () => ({ val: () => ({}) }), query: value => value, limitToLast: () => ({}), orderByChild: () => ({}), onValue: (_ref, handler) => handler({ val: () => false }), ref: (_db, path) => path,
       async set(path, value) { writes.push({ path, value }); if (options.hangSave) await new Promise(() => {}); },
       async remove(path) { deletions.push(path); }
     }

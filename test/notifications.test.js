@@ -7,12 +7,15 @@ function loadWorker() {
   const handlers = {};
   const notifications = [];
   const windows = [];
+  const receipts = [];
   vm.runInNewContext(fs.readFileSync('app/sw.js', 'utf8'), {
     console: { log() {} },
-    URL,
+    URL, crypto, TextEncoder, AbortSignal,
+    fetch: async (_url, options) => { receipts.push(JSON.parse(options.body)); return { ok: true }; },
     self: {
       addEventListener(name, handler) { handlers[name] = handler; },
       registration: {
+        pushManager: { getSubscription: async () => ({ endpoint: 'https://fcm.googleapis.com/fcm/send/device-test' }) },
         scope: 'https://web-push-4u2c.web.app/',
         showNotification(title, options) {
           notifications.push({ title, options });
@@ -27,7 +30,7 @@ function loadWorker() {
       }
     }
   });
-  return { handlers, notifications, windows };
+  return { handlers, notifications, windows, receipts };
 }
 
 for (const [label, data, expected] of [
@@ -58,4 +61,23 @@ test('notification click closes the notification and opens the app', async () =>
   await completion;
   assert.equal(closed, true);
   assert.deepEqual(worker.windows, ['https://web-push-4u2c.web.app/']);
+});
+
+
+test('tracked notification records receiving subscription and the clicked answer separately', async () => {
+  const worker = loadWorker();
+  let completion;
+  worker.handlers.push({ data: { text: () => JSON.stringify({ version: 1, testId: 'a'.repeat(32), receiptToken: 'B'.repeat(43) }) },
+    waitUntil(promise) { completion = promise; } });
+  await completion;
+  const notification = worker.notifications[0];
+  assert.equal(notification.options.body, 'Did you send this test notification from the browser on this device?');
+  assert.match(worker.receipts[0].receiverSubscriptionId, /^[a-f0-9]{64}$/);
+  assert.equal(worker.receipts[0].action, 'received');
+  worker.handlers.notificationclick({ action: 'no', notification: { close() {}, data: notification.options.data },
+    waitUntil(promise) { completion = promise; } });
+  await completion;
+  assert.equal(worker.receipts[1].action, 'no');
+  assert.equal(worker.receipts[1].navigation, 'new tab');
+  assert.equal(worker.receipts[1].testId, worker.receipts[0].testId);
 });

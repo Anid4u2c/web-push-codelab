@@ -52,6 +52,13 @@
           "functionId": "testPush",
           "region": "us-central1"
         }
+      },
+      {
+        "source": "/api/push/receipt",
+        "function": {
+          "functionId": "pushReceipt",
+          "region": "us-central1"
+        }
       }
     ]
   },

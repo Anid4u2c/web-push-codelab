@@ -3,6 +3,7 @@ const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getDatabase } = require('firebase-admin/database');
+const { createReceiptHandler } = require('./receipts.cjs');
 const webpush = require('web-push');
 const { claimQuota, createHandlers, parseVapid } = require('./push.cjs');
 
@@ -11,6 +12,11 @@ const database = getDatabase();
 const deployment = require('./deployment-config.json');
 const vapid = defineSecret(deployment.vapidSecretName);
 const handlers = createHandlers({
+  createTest: async (uid, test) => database.ref().update({
+    [`pushTests/${uid}/${test.testId}`]: test.record,
+    [`_pushTestReceipts/${test.testId}`]: { uid, tokenHash: test.tokenHash, expiresAt: test.record.expiresAt }
+  }),
+  markTest: (uid, id, deliveryStatus) => database.ref(`pushTests/${uid}/${id}`).update({ deliveryStatus, providerResultAt: Date.now() }),
   getVapid: () => parseVapid(vapid.value()),
   verifyToken: token => getAuth().verifyIdToken(token),
   readSubscription: async (uid, id) => (await database.ref(`subscriptions/${uid}/${id}`).get()).val(),
@@ -29,3 +35,8 @@ const options = {
 };
 exports.pushConfig = onRequest(options, handlers.config);
 exports.testPush = onRequest(options, handlers.sendTest);
+
+exports.pushReceipt = onRequest({ ...options, secrets: [] }, createReceiptHandler({
+  readCapability: async id => (await database.ref(`_pushTestReceipts/${id}`).get()).val(),
+  updateTest: (uid, id, update) => database.ref(`pushTests/${uid}/${id}`).transaction(update)
+}));

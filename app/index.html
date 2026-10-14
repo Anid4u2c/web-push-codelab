@@ -52,6 +52,12 @@
         <textarea id="subscriptionManualCopy" aria-label="Subscription for manual copying" readonly hidden rows="8"></textarea>
       </div>
     </section>
+    <details id="testReview">
+      <summary>Test notification history</summary>
+      <p>Review your latest 20 tests and Yes/No responses. IDs identify browser subscriptions, not physical devices. A response mismatch compares reported IDs; it does not establish intent or independently verify hardware.</p>
+      <button id="loadTestHistory" type="button">Refresh test history</button>
+      <pre id="testHistory"></pre>
+    </details>
     <details id="diagnostics">
       <summary>Diagnostics</summary>
       <p>Local status and recent app events. Tokens, account details, keys, and subscription endpoints are excluded.</p>

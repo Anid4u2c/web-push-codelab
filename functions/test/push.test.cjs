@@ -24,6 +24,7 @@ function fixture(overrides = {}) {
   const deleted = [];
   const keys = pair();
   const handlers = createHandlers({
+    createTest: async () => {}, markTest: async () => {},
     getVapid: () => keys,
     verifyToken: async () => ({ uid: 'alice', firebase: { sign_in_provider: 'google.com' } }),
     readSubscription: async (uid, requested) => { reads.push({ uid, id: requested }); return uid === 'alice' && requested === id ? record : null; },
@@ -59,7 +60,8 @@ test('sender verifies Google identity and reads only that identity’s device', 
   const res = response();
   await f.handlers.sendTest(f.req, res);
   assert.equal(res.code, 200);
-  assert.deepEqual(res.body, { sent: true });
+  assert.equal(res.body.sent, true);
+  assert.match(res.body.testId, /^[a-f0-9]{32}$/);
   assert.deepEqual(f.reads, [{ uid: 'alice', id: f.id }]);
   assert.equal(f.sends.length, 1);
   assert.equal(f.sends[0][0].endpoint, f.record.endpoint);

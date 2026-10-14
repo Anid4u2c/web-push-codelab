@@ -1,7 +1,7 @@
 const { createECDH, createHash } = require('node:crypto');
 
 const contact = 'https://web-push-4u2c.web.app/';
-const message = 'Your Web Push demo is working. This notification was sent to your own device.';
+const { newTest } = require('./receipts.cjs');
 
 function parseVapid(value) {
   try {
@@ -74,19 +74,29 @@ function createHandlers(deps) {
     const id = data.subscriptionId;
     let record;
     let sending = false;
+    let tracking;
     try {
       record = await deps.readSubscription(token.uid, id);
       if (!record) return res.status(404).json({ error: 'Subscribe this device first.' });
       if (!validSubscription(record, id)) return res.status(400).json({ error: 'This subscription is not supported. Subscribe again using a supported browser.' });
       if (!await deps.claimQuota(token.uid)) return res.status(429).json({ error: 'Please wait 30 seconds before another test. The demo also has a daily send limit.' });
       const pair = deps.getVapid();
+      tracking = newTest(id);
+      await deps.createTest(token.uid, tracking);
       sending = true;
-      await deps.sendNotification(record, message, {
+      await deps.sendNotification(record, JSON.stringify({
+        version: 1, testId: tracking.testId, receiptToken: tracking.receiptToken,
+        body: tracking.record.question
+      }), {
         TTL: 60, timeout: 5000,
         vapidDetails: { subject: contact, ...pair }
       });
-      return res.json({ sent: true });
+      await deps.markTest(token.uid, tracking.testId, 'provider accepted');
+      return res.json({ sent: true, testId: tracking.testId });
     } catch (error) {
+      if (tracking) {
+        try { await deps.markTest(token.uid, tracking.testId, 'not confirmed'); } catch { /* Keep the original safe error. */ }
+      }
       if (sending && [404, 410].includes(error.statusCode)) {
         // A concurrent refresh must not be deleted: storage handles compare-and-delete.
         try { await deps.deleteSubscription(token.uid, id, record); } catch {
