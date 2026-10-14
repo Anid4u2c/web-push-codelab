@@ -90,6 +90,12 @@ node scripts/setup-gcp.mjs
 
 Enter the same project and account names used previously, approve the displayed plan, then rerun deployment after IAM changes propagate. Alternatively, a project administrator can grant the deployment principal **Service Account User** directly on the existing default account named in the error in **Service Accounts → Permissions → Grant access**. A project-wide grant is unnecessary.
 
+### Container image cleanup
+
+The pinned CLI requires an Artifact Registry cleanup policy for noninteractive deployment. Setup checks the existing `gcf-artifacts` repository in `us-central1` and, if no policy or explicit opt-out exists, enables a 7-day deletion policy for build images. Existing policies are preserved. This removes old stored build images, not running services; old image downloads may no longer be available.
+
+If the first deployment says **Functions successfully deployed but could not set up cleanup policy**, rerun Cloud Shell setup and then deployment. The repository exists after function creation. The administrator configures cleanup; the deployment account does not need Artifact Registry Admin.
+
 ### Where `WEB_PUSH_VAPID` belongs
 
 `WEB_PUSH_VAPID` is a **Google Cloud Secret Manager secret** in project `PROJECT_ID`, not a GitHub Actions secret or a browser environment variable. Its default name is `WEB_PUSH_VAPID` (or the name chosen in setup): do not add a `VITE_` or `FIREBASE_` prefix.

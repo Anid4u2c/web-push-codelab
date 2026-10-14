@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { stdin, stdout } from 'node:process';
 
 const configFile = new URL('../functions/deployment-config.json', import.meta.url);
@@ -66,7 +68,7 @@ try {
   }
   const hasSecret = list => list.some(secret => secret.name.split('/').at(-1) === secretId);
   console.log(`${secrets ? (hasSecret(secrets) ? 'Reuse' : 'Create empty secret container') : 'Check after enabling Secret Manager API, then reuse or create empty container'}: ${secretId}`);
-  console.log(`\nPlan: enable required APIs; grant the runtime account Database Admin and secret-specific Secret Accessor; grant the deployment account Hosting Admin, Database Admin, Functions Admin, Cloud Run Admin, Service Account User on runtime and existing default App Engine and Compute accounts, and secret-specific Secret Manager Admin. Existing policies and secret versions are preserved.`);
+  console.log(`\nPlan: enable required APIs; grant the runtime account Database Admin and secret-specific Secret Accessor; grant the deployment account Hosting Admin, Database Admin, Functions Admin, Cloud Run Admin, Service Account User on runtime and existing default App Engine and Compute accounts, and secret-specific Secret Manager Admin. Add a 7-day image cleanup policy to the existing function artifact repository if none exists. Existing policies and secret versions are preserved.`);
   if ((await prompt.question('Apply these changes? [y/N]: ')).trim().toLowerCase() !== 'y') {
     console.log('Cancelled. No changes applied.');
   } else {
@@ -93,6 +95,27 @@ try {
     for (const [email, role] of [[runtime, 'roles/secretmanager.secretAccessor'], [deploy, 'roles/secretmanager.admin']]) {
       gcloud('secrets', 'add-iam-policy-binding', secretId, '--project', project,
         `--member=serviceAccount:${email}`, `--role=${role}`, '--condition=None');
+    }
+    const repositories = gcloud('artifacts', 'repositories', 'list', '--location=us-central1', '--project', project);
+    const artifacts = repositories.find(repository => repository.name.split('/').at(-1) === 'gcf-artifacts');
+    if (!artifacts) {
+      console.log('Function artifact repository does not exist yet. Rerun setup after the first function creation to configure image cleanup.');
+    } else if (Object.keys(artifacts.cleanupPolicies || {}).length || artifacts.labels?.['firebase-functions-cleanup-opted-out'] === 'true') {
+      console.log('Preserving existing artifact cleanup policy or explicit opt-out.');
+    } else {
+      const directory = await mkdtemp(join(tmpdir(), 'push-artifact-policy-'));
+      try {
+        const policyFile = join(directory, 'policy.json');
+        await writeFile(policyFile, JSON.stringify([{
+          id: 'firebase-functions-cleanup', action: { type: 'Delete' },
+          condition: { tagState: 'any', olderThan: '7d' }
+        }]));
+        gcloud('artifacts', 'repositories', 'set-cleanup-policies', 'gcf-artifacts',
+          '--location=us-central1', '--project', project, `--policy=${policyFile}`, '--no-dry-run');
+        console.log('Function artifact cleanup policy enabled: delete images older than 7 days. Running services are unaffected.');
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
     }
     await writeFile(configFile, JSON.stringify({ ...config, runtimeAccountId: runtimeId,
       deploymentAccountId: deployId, vapidSecretName: secretId }, null, 2) + '\n');
