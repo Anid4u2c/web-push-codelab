@@ -159,18 +159,24 @@ This is a legacy demo, not yet a complete authenticated PWA:
 - Glitch project hosting has ended; the active app no longer links to its companion site. The original companion-site links and embedded keys in `completed/` are historical examples. The live app gets its public key from the backend; the private key is never returned to the browser.
 - Automatic subscription renewal needs an authenticated backend. The app checks the browser subscription when opened; it does not post renewals to a placeholder endpoint.
 
-## Next steps
+## Release validation and follow-up
 
-1. Verify the release's Google sign-in on both authorized Hosting domains and check the live rules. Test with two distinct accounts and multiple browser profiles.
-2. Verify real self-test delivery on multiple devices after backend deployment. Add App Check and stronger abuse controls before widening the public audience.
-3. Add a web manifest, install guidance, and explicit permission controls. Define notification action behavior and unsupported-browser states.
-4. Test real delivery, unsubscribe, denied permissions, multiple users, and both Hosting origins. Include supported Android browsers and installed iOS/iPadOS Home Screen web apps.
+The deployment workflow completed successfully, and Android Chrome displayed the self-test notification. Sending also succeeded with a second Google account. These manual checks confirm real delivery for the tested accounts and device; they do not establish cross-account isolation by themselves. Automated database rules tests cover owner access and cross-user denial.
+
+An existing Realtime Database instance needed to be enabled again before subscription saves completed. Setup now verifies that the configured instance is ACTIVE rather than relying solely on API enablement. If an instance becomes inactive, review its state and the reason in Firebase Console before re-enabling it; no replacement database is required for an existing instance.
+
+Remaining follow-up:
+
+- Verify sign-out/unsubscribe and both Hosting origins on real devices, including denied notification permissions.
+- Add a web manifest, app icons and install guidance for a complete PWA showcase. Notification appearance is controlled by the browser and OS; installation does not guarantee browser branding disappears everywhere.
+- Test installed iOS/iPadOS Home Screen delivery when the install experience is available.
+- Add App Check and stronger abuse controls before promoting the demo to a wider public audience.
 
 ## Security and credentials
 
 Firebase web app configuration and VAPID **public** keys are client configuration, not server credentials. Private VAPID keys, service-account JSON, OAuth client secrets, and personal access tokens must stay outside the repository. Local environment files and common credential file extensions are ignored; ignore rules are a precaution, not a secret detector.
 
-A credential-pattern review of tracked files found no matching server credentials. Local Git history includes cryptography test keys and PEM-format markers from previously vendored Python libraries; these are test fixtures or library code, not identified deployment credentials. Pattern matching cannot guarantee the absence of every secret. Live rule deployment must be verified separately. The runtime dependency audit is clear after a compatible gRPC override. The Firebase CLI still introduces upstream development-tool advisories; do not interpret the earlier tooling-only audit as the status of this expanded dependency set.
+A credential-pattern review of tracked files found no matching server credentials. Local Git history includes cryptography test keys and PEM-format markers from previously vendored Python libraries; these are test fixtures or library code, not identified deployment credentials. Pattern matching cannot guarantee the absence of every secret. Live rule deployment must be verified separately. The frontend production and Functions dependency audits reported no vulnerabilities during the release review. The Firebase CLI’s `gaxios` dependency now uses a scoped `uuid@11.1.1` override to fix [GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq); its CommonJS API and normal UUID generation are verified. The override does not affect the separate analytics dependency. The broader development-tool audit still reports advisories through Firebase CLI dependencies, including OpenTelemetry, FTP/proxy tooling and braces. These tools are not included in the deployed frontend or Functions runtime, but their findings remain open for upstream updates and tooling review. The GitHub Dependabot alert API was inaccessible to this environment, so the exact alert identity and closure were not independently verified.
 
 ## Sources
 
