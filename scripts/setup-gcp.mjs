@@ -56,7 +56,7 @@ try {
   }
   const hasSecret = list => list.some(secret => secret.name.split('/').at(-1) === secretId);
   console.log(`${secrets ? (hasSecret(secrets) ? 'Reuse' : 'Create empty secret container') : 'Check after enabling Secret Manager API, then reuse or create empty container'}: ${secretId}`);
-  console.log(`\nPlan: enable required APIs; grant the runtime account Database Admin and secret-specific Secret Accessor; grant the deployment account Hosting Admin, Database Admin, Functions Developer, Cloud Run Admin, Service Account User on runtime and the existing default App Engine account, and secret-specific Secret Manager Admin. Existing policies and secret versions are preserved.`);
+  console.log(`\nPlan: enable required APIs; grant the runtime account Database Admin and secret-specific Secret Accessor; grant the deployment account Hosting Admin, Database Admin, Functions Admin, Cloud Run Admin, Service Account User on runtime and the existing default App Engine account, and secret-specific Secret Manager Admin. Existing policies and secret versions are preserved.`);
   if ((await prompt.question('Apply these changes? [y/N]: ')).trim().toLowerCase() !== 'y') {
     console.log('Cancelled. No changes applied.');
   } else {
@@ -73,7 +73,7 @@ try {
     const projectRole = (email, role) => gcloud('projects', 'add-iam-policy-binding', project,
       `--member=serviceAccount:${email}`, `--role=${role}`, '--condition=None');
     projectRole(runtime, 'roles/firebasedatabase.admin');
-    for (const role of ['roles/firebasehosting.admin', 'roles/firebasedatabase.admin', 'roles/cloudfunctions.developer', 'roles/run.admin']) {
+    for (const role of ['roles/firebasehosting.admin', 'roles/firebasedatabase.admin', 'roles/cloudfunctions.admin', 'roles/run.admin']) {
       projectRole(deploy, role);
     }
     for (const account of new Set([runtime, ...(defaultExists ? [defaultAccount] : [])])) {

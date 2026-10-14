@@ -62,6 +62,10 @@ test('Cloud Shell setup reuses existing resources and scopes identity/secret gra
   assert.equal(result.calls.some(args => starts(args, 'iam service-accounts add-iam-policy-binding') && args.includes('demo-push-project@appspot.gserviceaccount.com') && args.includes('--role=roles/iam.serviceAccountUser')), true);
   assert.equal(result.calls.some(args => starts(args, 'projects add-iam-policy-binding') && args.includes('--role=roles/secretmanager.admin')), false);
   assert.equal(result.calls.some(args => args.includes('versions') || args.includes('keys')), false);
+  assert.ok(result.calls.some(args => starts(args, 'projects add-iam-policy-binding')
+    && args.includes('--member=serviceAccount:github-deploy@demo-push-project.iam.gserviceaccount.com')
+    && args.includes('--role=roles/cloudfunctions.admin')));
+  assert.equal(result.calls.some(args => args.includes('--role=roles/cloudfunctions.developer')), false);
 });
 
 test('Cloud Shell setup checks after API enablement and creates missing selected names', async () => {
