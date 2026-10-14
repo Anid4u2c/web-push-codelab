@@ -38,7 +38,7 @@
 
     <section class="subscription-details js-subscription-details is-invisible">
       <p>Your browser is subscribed. The backend keeps its private signing key in secret storage.</p>
-      <p>Use the copy button for your sender. Subscription details are private; do not publish them.</p>
+      <p>Subscription details are private. They are not needed for troubleshooting; share Diagnostics instead.</p>
       <p>Notification icons and actions depend on browser and operating-system support.</p>
       <h4>Subscription Data</h4>
       <div id="jsonWrapper">
@@ -48,6 +48,8 @@
         <button id="copyToClipboard" data-clipboard-target="#json">
           Copy
         </button>
+        <p id="subscriptionFeedback" role="status" aria-live="polite"></p>
+        <textarea id="subscriptionManualCopy" aria-label="Subscription for manual copying" readonly hidden rows="8"></textarea>
       </div>
     </section>
     <details id="diagnostics">

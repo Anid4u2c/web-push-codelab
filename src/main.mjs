@@ -1,7 +1,7 @@
 import { withTimeout } from './timeout.mjs';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { getDatabase, ref, remove, set } from 'firebase/database';
+import { getDatabase, onValue, ref, remove, set } from 'firebase/database';
 import { createDiagnostics } from './diagnostics.mjs';
 import { firebaseConfig } from './firebase-config.mjs';
 import { loadPushPublicKey, sendMyTestNotification } from './push-api.mjs';
@@ -27,6 +27,7 @@ let busy = false;
 let subscriptionSaved = false;
 let authReady = false;
 let syncing = 0;
+let databaseConnected = false;
 
 function currentKeyMatches() {
   const existing = subscription?.options.applicationServerKey;
@@ -47,6 +48,7 @@ function render() {
     'Push backend': serverPublicKey ? 'Public key loaded' : 'Not ready',
     'Subscription': subscription ? 'Present in browser' : 'None',
     'Subscription storage': subscriptionSaved ? 'Saved for this account' : 'Not confirmed',
+    'Database connection': databaseConnected ? 'Connected' : 'Disconnected or connecting',
     'Operation': busy ? 'In progress' : syncing ? 'Checking subscription' : 'Idle'
   });
   document.getElementById('notificationHelp').hidden = window.Notification?.permission !== 'denied';
@@ -72,6 +74,11 @@ function render() {
   retrySetupButton.disabled = pending;
   details.classList.toggle('is-invisible', !user || !subscription);
   subscriptionJson.textContent = user && subscription ? JSON.stringify(subscription.toJSON(), null, 2) : '';
+  if (!user || !subscription) {
+    document.getElementById('subscriptionManualCopy').value = '';
+    document.getElementById('subscriptionManualCopy').hidden = true;
+    document.getElementById('subscriptionFeedback').textContent = '';
+  }
 }
 
 function showError(error) {
@@ -177,11 +184,6 @@ async function loadBackendKey() {
   render();
 }
 retrySetupButton.addEventListener('click', () => perform(loadBackendKey, 'Load push setup'));
-document.getElementById('copyToClipboard').addEventListener('click', () => perform(async () => {
-  if (!subscription || !auth.currentUser) throw new Error('Sign in and subscribe first.');
-  await navigator.clipboard.writeText(subscriptionJson.textContent);
-  status.textContent = 'Subscription copied. Keep it private.';
-}));
 
 async function reconcile(user) {
   syncing += 1;
@@ -234,20 +236,31 @@ async function start() {
 document.getElementById('retrySubscriptionSave').addEventListener('click', () => perform(saveCurrentSubscription, 'Save subscription'));
 
 document.getElementById('clearDiagnostics').addEventListener('click', () => diagnostics.clear());
-document.getElementById('copyDiagnostics').addEventListener('click', async () => {
-  const feedback = document.getElementById('diagnosticsFeedback');
+async function copyText(text, feedbackId, manualId, success) {
+  const feedback = document.getElementById(feedbackId);
   try {
     if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
-    await withTimeout(navigator.clipboard.writeText(diagnostics.text()), 'Clipboard timed out.', 5000);
-    feedback.textContent = 'Diagnostics copied.';
+    await withTimeout(navigator.clipboard.writeText(text), 'Clipboard timed out.', 5000);
+    feedback.textContent = success;
   } catch {
-    const manual = document.getElementById('diagnosticsManualCopy');
-    manual.value = diagnostics.text();
+    const manual = document.getElementById(manualId);
+    manual.value = text;
     manual.hidden = false;
     manual.focus();
     manual.select();
-    feedback.textContent = 'Clipboard access failed. Copy the selected text below, or download diagnostics.';
+    feedback.textContent = 'Clipboard access failed. Copy the selected text below.';
   }
+}
+document.getElementById('copyDiagnostics').addEventListener('click', () =>
+  copyText(diagnostics.text(), 'diagnosticsFeedback', 'diagnosticsManualCopy', 'Diagnostics copied.'));
+document.getElementById('copyToClipboard').addEventListener('click', () => {
+  if (!subscription || !auth.currentUser) return;
+  return copyText(subscriptionJson.textContent, 'subscriptionFeedback', 'subscriptionManualCopy', 'Subscription copied. Keep it private.');
+});
+onValue(ref(database, '.info/connected'), snapshot => {
+  databaseConnected = snapshot.val() === true;
+  diagnostics.record(databaseConnected ? 'Database connected' : 'Database disconnected');
+  render();
 });
 document.getElementById('downloadDiagnostics').addEventListener('click', () => {
   const url = URL.createObjectURL(new Blob([diagnostics.text()], { type: 'text/plain' }));

@@ -48,7 +48,7 @@ async function loadPage(hostname = 'web-push-4u2c.web.app', options = {}) {
       async signOut() { auth.currentUser = null; await callback(null); }
     },
     'firebase/database': {
-      getDatabase: () => ({}), ref: (_db, path) => path,
+      getDatabase: () => ({}), onValue: (_ref, handler) => handler({ val: () => false }), ref: (_db, path) => path,
       async set(path, value) { writes.push({ path, value }); if (options.hangSave) await new Promise(() => {}); },
       async remove(path) { deletions.push(path); }
     }
@@ -131,4 +131,16 @@ test('diagnostics copying remains available while a database save is pending and
   assert.equal(page.element('sendTest').disabled, true);
   assert.equal(page.element('retrySubscriptionSave').hidden, false);
   assert.match(page.element('status').textContent, /timed out/);
+});
+
+
+test('subscription copying has a manual fallback without needing to publish its contents', async () => {
+  const page = await loadPage(undefined, { failClipboard: true });
+  await page.element('signIn').handlers.click();
+  await page.element('.js-push-btn').handlers.click();
+  await page.element('copyToClipboard').handlers.click();
+  assert.equal(page.element('subscriptionManualCopy').hidden, false);
+  assert.match(page.element('subscriptionFeedback').textContent, /Clipboard access failed/);
+  assert.match(page.element('diagnosticsOutput').textContent, /Database connection: Disconnected or connecting/);
+  assert.doesNotMatch(page.element('diagnosticsOutput').textContent, /test-device/);
 });

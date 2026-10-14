@@ -119,6 +119,16 @@ Expand **Diagnostics** on the page for the active site/auth domain, authenticati
 
 Google popup authentication can emit COOP `window.closed` warnings while Firebase polls for cancellation. A signed-in account indicates login completed despite those warnings. If notifications are denied, allow them in the browser's site permissions and reload.
 
+### Subscription saves timing out
+
+A browser subscription can exist while its database write remains unconfirmed. Check **Database connection** in Diagnostics. If disconnected, verify connectivity and that the configured URL belongs to an active database. From a signed-in Cloud Shell checkout:
+
+```sh
+node scripts/check-database.mjs
+```
+
+This lists instance URLs and their state, compares them with the frontend configuration, and reads no database records. Share this metadata and the safe page Diagnostics; subscription JSON is unnecessary. A URL mismatch requires updating both frontend and backend database URLs and checking the rules deployment target. A connected database with failed writes calls for checking deployed owner rules and authentication; never loosen rules to troubleshoot.
+
 ### Export backend logs from Cloud Shell
 
 After reproducing an issue, run from your checkout while signed in with a Cloud Logging reader identity:
