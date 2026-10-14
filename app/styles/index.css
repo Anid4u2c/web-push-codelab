@@ -104,3 +104,13 @@ input { width: 100%; box-sizing: border-box; padding: .7rem; border: 1px solid #
 #diagnostics summary { cursor: pointer; font-weight: 600; }
 #diagnostics pre { font-size: .85rem; }
 #notificationHelp { padding: .75rem; background: #fff3cd; border-radius: 4px; }
+
+/* Touch-friendly data actions, with readable fallback text on narrow screens. */
+.copy-button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-width: 48px; min-height: 48px; border-radius: 10px; }
+.copy-button svg { flex-shrink: 0; }
+#testReview { margin: 1.5rem 0; padding: 1rem; border: 1px solid #cfd8dc; border-radius: 8px; }
+#testReview summary { cursor: pointer; font-weight: 600; }
+pre { overflow-wrap: anywhere; font-size: .85rem; }
+textarea { width: 100%; box-sizing: border-box; font: inherit; padding: .75rem; border: 1px solid #607d8b; border-radius: 8px; }
+textarea[hidden] { display: none; }
+.copy-button:focus-visible, textarea:focus-visible { outline: 3px solid #ff9800; outline-offset: 3px; }

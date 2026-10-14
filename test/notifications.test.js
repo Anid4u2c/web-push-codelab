@@ -11,7 +11,7 @@ function loadWorker() {
   vm.runInNewContext(fs.readFileSync('app/sw.js', 'utf8'), {
     console: { log() {} },
     URL, crypto, TextEncoder, AbortSignal,
-    fetch: async (_url, options) => { receipts.push(JSON.parse(options.body)); return { ok: true }; },
+    fetch: async (_url, options) => { receipts.push(JSON.parse(options.body)); return { ok: true, json: async () => ({ recorded: true }) }; },
     self: {
       addEventListener(name, handler) { handlers[name] = handler; },
       registration: {

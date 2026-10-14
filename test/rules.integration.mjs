@@ -112,3 +112,17 @@ test('test history is owner-readable and server-write-only; receipt capabilities
   await assertFails(get(ref(database('bob'), 'pushTests/alice')));
   await assertFails(get(ref(database(null), 'pushTests/alice')));
 });
+
+
+test('receipt transaction reads existing record before using a missing-record abort', async () => {
+  await environment.withSecurityRulesDisabled(async context => {
+    await set(ref(context.database(), 'pushTests/alice/cold-cache'), { createdAt: 123 });
+  });
+  await environment.withSecurityRulesDisabled(async context => {
+    const reference = ref(context.database(), 'pushTests/alice/cold-cache');
+    await get(reference);
+    const result = await runTransaction(reference, current => current ? { ...current, response: { action: 'yes' } } : null);
+    assert.equal(result.committed, true);
+    assert.equal(result.snapshot.val().response.action, 'yes');
+  });
+});

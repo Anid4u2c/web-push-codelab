@@ -45,9 +45,7 @@
         <!-- Target -->
         <pre><code class="js-subscription-json" id="json"></code></pre>
         <!-- Trigger -->
-        <button id="copyToClipboard" data-clipboard-target="#json">
-          Copy
-        </button>
+        <button id="copyToClipboard" type="button" class="copy-button" aria-label="Copy subscription data"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span>Copy</span></button>
         <p id="subscriptionFeedback" role="status" aria-live="polite"></p>
         <textarea id="subscriptionManualCopy" aria-label="Subscription for manual copying" readonly hidden rows="8"></textarea>
       </div>
@@ -56,13 +54,16 @@
       <summary>Test notification history</summary>
       <p>Review your latest 20 tests and Yes/No responses. IDs identify browser subscriptions, not physical devices. A response mismatch compares reported IDs; it does not establish intent or independently verify hardware.</p>
       <button id="loadTestHistory" type="button">Refresh test history</button>
+      <button id="copyTestHistory" type="button" class="copy-button" aria-label="Copy test notification history" disabled><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span>Copy</span></button>
       <pre id="testHistory"></pre>
+      <p id="testHistoryFeedback" role="status" aria-live="polite"></p>
+      <textarea id="testHistoryManualCopy" aria-label="Test history for manual copying" readonly hidden rows="12"></textarea>
     </details>
     <details id="diagnostics">
       <summary>Diagnostics</summary>
       <p>Local status and recent app events. Tokens, account details, keys, and subscription endpoints are excluded.</p>
       <pre id="diagnosticsOutput"></pre>
-      <button type="button" id="copyDiagnostics">Copy diagnostics</button>
+      <button type="button" id="copyDiagnostics" class="copy-button" aria-label="Copy diagnostics"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span>Copy diagnostics</span></button>
       <button type="button" id="downloadDiagnostics">Download diagnostics</button>
       <p id="diagnosticsFeedback" role="status" aria-live="polite"></p>
       <textarea id="diagnosticsManualCopy" aria-label="Diagnostics for manual copying" readonly hidden rows="12"></textarea>

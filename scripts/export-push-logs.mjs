@@ -9,7 +9,7 @@ try {
   const args = process.argv.slice(2);
   if (args.includes('--help')) {
     console.log('node scripts/export-push-logs.mjs [--project PROJECT_ID] [--since 1h] [--limit 200] [--output logs/push-logs.json]');
-    console.log('Uses your signed-in gcloud identity. Defaults to the active project and exports request and application logs for pushconfig/testpush, excluding audit logs. Output may contain personal data; review before sharing.');
+    console.log('Uses your signed-in gcloud identity. Defaults to the active project and exports request and application logs for pushconfig/testpush/pushreceipt, excluding audit logs. Output may contain personal data; review before sharing.');
     process.exit(0);
   }
   for (let index = 0; index < args.length; index += 2) {
@@ -35,7 +35,7 @@ try {
   const output = resolve(root, values.get('--output') || `logs/push-logs-${stamp}.json`);
   const logDirectory = resolve(root, 'logs');
   if (!output.startsWith(logDirectory + '/') || !output.endsWith('.json')) throw new Error('--output must be a .json file under the project-root logs/ folder.');
-  const filter = '(resource.type="cloud_run_revision" AND resource.labels.service_name=("testpush" OR "pushconfig") AND resource.labels.location="us-central1") OR (resource.type="cloud_function" AND resource.labels.function_name=("testPush" OR "pushConfig") AND resource.labels.region="us-central1")';
+  const filter = '(resource.type="cloud_run_revision" AND resource.labels.service_name=("testpush" OR "pushconfig" OR "pushreceipt") AND resource.labels.location="us-central1") OR (resource.type="cloud_function" AND resource.labels.function_name=("testPush" OR "pushConfig" OR "pushReceipt") AND resource.labels.region="us-central1")';
   const records = gcloud(['logging', 'read', `(${filter}) AND NOT logName:"cloudaudit.googleapis.com"`,
     `--project=${project}`, `--freshness=${since}`, `--limit=${limit}`, '--order=desc']);
   if (!Array.isArray(records)) throw new Error('Cloud Logging returned an unexpected result; no export written.');

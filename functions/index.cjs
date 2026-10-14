@@ -38,5 +38,11 @@ exports.testPush = onRequest(options, handlers.sendTest);
 
 exports.pushReceipt = onRequest({ ...options, secrets: [] }, createReceiptHandler({
   readCapability: async id => (await database.ref(`_pushTestReceipts/${id}`).get()).val(),
-  updateTest: (uid, id, update) => database.ref(`pushTests/${uid}/${id}`).transaction(update)
+  updateTest: async (uid, id, update) => {
+    const reference = database.ref(`pushTests/${uid}/${id}`);
+    // A fresh transaction starts with a null local cache. Let the server
+    // compare/retry that initial null; aborting immediately loses existing records.
+    if (!(await reference.get()).exists()) return { committed: false };
+    return reference.transaction(current => current === null ? null : update(current));
+  }
 }));

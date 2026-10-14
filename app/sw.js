@@ -31,17 +31,27 @@ async function receiverId() {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+async function notifyReceipt(action, result) {
+  const windows = clients.matchAll ? await clients.matchAll({ type: 'window', includeUncontrolled: true }) : [];
+  for (const client of windows) {
+    if (client.url?.startsWith(self.registration.scope)) client.postMessage({ type: 'push-receipt-status', action, result });
+  }
+}
+
 async function report(data, action, navigation = 'not requested') {
   if (!data?.testId || !data?.receiptToken) return;
   try {
-    await fetch(new URL('api/push/receipt', self.registration.scope), {
+    const response = await fetch(new URL('api/push/receipt', self.registration.scope), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ testId: data.testId, receiptToken: data.receiptToken,
         receiverSubscriptionId: data.receiverSubscriptionId ?? null, action,
         clientTime: Date.now(), navigation }),
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(15000)
     });
+    const body = await response.json().catch(() => ({}));
+    await notifyReceipt(action, response.ok ? (body.recorded ? 'saved' : 'already recorded') : `HTTP ${response.status}`);
   } catch {
+    await notifyReceipt(action, 'network failure');
     // Delivery/click records are best effort. Never log the capability or subscription.
     console.log('[Service Worker] Receipt could not be submitted.');
   }

@@ -53,6 +53,7 @@ function render() {
   });
   document.getElementById('notificationHelp').hidden = window.Notification?.permission !== 'denied';
   account.textContent = user ? `Signed in as ${user.displayName || user.email || 'Google user'}` : 'Sign in to manage your subscription.';
+  document.getElementById('copyTestHistory').disabled = !user || !document.getElementById('testHistory').textContent;
   document.getElementById('loadTestHistory').disabled = !user || pending;
   if (!user) document.getElementById('testHistory').textContent = '';
   signInButton.hidden = !!user;
@@ -219,6 +220,9 @@ async function reconcile(user) {
 onAuthStateChanged(auth, async user => {
   authReady = true;
   document.getElementById('testHistory').textContent = '';
+  document.getElementById('testHistoryManualCopy').value = '';
+  document.getElementById('testHistoryManualCopy').hidden = true;
+  document.getElementById('testHistoryFeedback').textContent = '';
   diagnostics.record(user ? 'Auth state: signed in' : 'Auth state: signed out');
   subscription = null;
   subscriptionSaved = false;
@@ -265,6 +269,10 @@ async function copyText(text, feedbackId, manualId, success) {
 }
 document.getElementById('copyDiagnostics').addEventListener('click', () =>
   copyText(diagnostics.text(), 'diagnosticsFeedback', 'diagnosticsManualCopy', 'Diagnostics copied.'));
+document.getElementById('copyTestHistory').addEventListener('click', () => {
+  if (!auth.currentUser || !document.getElementById('testHistory').textContent) return;
+  return copyText(document.getElementById('testHistory').textContent, 'testHistoryFeedback', 'testHistoryManualCopy', 'Test history copied.');
+});
 document.getElementById('copyToClipboard').addEventListener('click', () => {
   if (!subscription || !auth.currentUser) return;
   return copyText(subscriptionJson.textContent, 'subscriptionFeedback', 'subscriptionManualCopy', 'Subscription copied. Keep it private.');
@@ -292,3 +300,13 @@ if (!('Notification' in window)) {
 }
 
 render();
+
+if (navigator.serviceWorker?.addEventListener) {
+  navigator.serviceWorker.addEventListener('message', event => {
+    const value = event.data;
+    if (value?.type !== 'push-receipt-status' || !['received', 'yes', 'no', 'open'].includes(value.action)) return;
+    const result = ['saved', 'already recorded', 'network failure'].includes(value.result) ? value.result
+      : /^HTTP [1-5][0-9]{2}$/.test(value.result || '') ? value.result : 'unknown';
+    diagnostics.record(`Notification ${value.action} receipt: ${result}`);
+  });
+}

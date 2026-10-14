@@ -144,3 +144,15 @@ test('subscription copying has a manual fallback without needing to publish its 
   assert.match(page.element('diagnosticsOutput').textContent, /Database connection: Disconnected or connecting/);
   assert.doesNotMatch(page.element('diagnosticsOutput').textContent, /test-device/);
 });
+
+
+test('test history has the same manual-copy fallback as other review data', async () => {
+  const page = await loadPage(undefined, { failClipboard: true });
+  await page.element('signIn').handlers.click();
+  page.element('testHistory').textContent = '[{"testId":"example"}]';
+  await page.element('copyTestHistory').handlers.click();
+  assert.match(page.element('testHistoryFeedback').textContent, /Clipboard access failed/);
+  assert.equal(page.element('testHistoryManualCopy').value, '[{"testId":"example"}]');
+  await page.callback(null);
+  assert.equal(page.element('testHistoryManualCopy').value, '');
+});
