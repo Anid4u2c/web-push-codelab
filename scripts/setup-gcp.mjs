@@ -72,11 +72,14 @@ try {
   if ((await prompt.question('Apply these changes? [y/N]: ')).trim().toLowerCase() !== 'y') {
     console.log('Cancelled. No changes applied.');
   } else {
-    gcloud('services', 'enable', 'cloudfunctions.googleapis.com', 'cloudbuild.googleapis.com',
+    const requiredApis = ['cloudfunctions.googleapis.com', 'cloudbuild.googleapis.com',
       'artifactregistry.googleapis.com', 'run.googleapis.com', 'iam.googleapis.com',
       'secretmanager.googleapis.com', 'firebasehosting.googleapis.com', 'firebasedatabase.googleapis.com',
       'firebaseextensions.googleapis.com', 'eventarc.googleapis.com', 'pubsub.googleapis.com',
-      'storage.googleapis.com', 'cloudbilling.googleapis.com', '--project', project);
+      'storage.googleapis.com', 'cloudbilling.googleapis.com'];
+    const enabledApis = new Set(services.map(service => service.config?.name));
+    const missingApis = requiredApis.filter(api => !enabledApis.has(api));
+    if (missingApis.length) gcloud('services', 'enable', ...missingApis, '--project', project);
     for (const [id, email] of [[runtimeId, runtime], [deployId, deploy]]) {
       if (!accountExists(email)) gcloud('iam', 'service-accounts', 'create', id, '--project', project);
     }
@@ -107,7 +110,7 @@ try {
       try {
         const policyFile = join(directory, 'policy.json');
         await writeFile(policyFile, JSON.stringify([{
-          id: 'firebase-functions-cleanup', action: { type: 'Delete' },
+          name: 'firebase-functions-cleanup', action: { type: 'Delete' },
           condition: { tagState: 'any', olderThan: '7d' }
         }]));
         gcloud('artifacts', 'repositories', 'set-cleanup-policies', 'gcf-artifacts',

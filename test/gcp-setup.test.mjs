@@ -17,6 +17,13 @@ async function runSetup(mode, answers = ['demo-push-project', '', '', '', 'y']) 
 const fs = require('node:fs');
 const args = process.argv.slice(2);
 fs.appendFileSync(process.env.CALL_LOG, JSON.stringify(args) + '\\n');
+if (args.includes('set-cleanup-policies')) {
+  const file = args.find(arg => arg.startsWith('--policy=')).slice('--policy='.length);
+  const policy = JSON.parse(fs.readFileSync(file, 'utf8'))[0];
+  if (policy.name !== 'firebase-functions-cleanup' || policy.id || policy.action.type !== 'Delete' || policy.condition.olderThan !== '7d') {
+    console.error('Invalid gcloud cleanup policy schema'); process.exit(1);
+  }
+}
 const starts = text => args.slice(0, text.split(' ').length).join(' ') === text;
 let result = {};
 if (starts('artifacts repositories list')) result = [{ name: 'projects/123456789012/locations/us-central1/repositories/gcf-artifacts', cleanupPolicies: process.env.MODE === 'active' ? {} : { existing: {} } }];

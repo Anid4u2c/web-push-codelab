@@ -55,7 +55,7 @@ The script offers the active `gcloud` project as the project ID default. Press E
 
 Before applying changes, it checks billing, lists existing accounts and secrets, and shows a plan for confirmation. It reuses existing resources and preserves secret versions and IAM bindings. Permission errors stop setup rather than being treated as missing resources. If the Secret Manager API is disabled, it checks for the secret after enabling the API and before creating anything. Interrupted setup can be rerun; earlier successful changes remain in place.
 
-The script enables required APIs, creates missing accounts and an empty secret container, and grants the roles below. Secret permissions are scoped to the chosen secret; Service Account User is scoped to the runtime account and, when present, the default App Engine account required by the pinned Firebase CLI and the default Compute account used for function builds. It does not create service-account JSON keys or read secret values. GitHub generates the VAPID pair on deployment.
+The script enables only missing required APIs, creates missing accounts and an empty secret container, and grants the roles below. Secret permissions are scoped to the chosen secret; Service Account User is scoped to the runtime account and, when present, the default App Engine account required by the pinned Firebase CLI and the default Compute account used for function builds. It does not create service-account JSON keys or read secret values. GitHub generates the VAPID pair on deployment.
 
 Your chosen names are saved in `functions/deployment-config.json`, which is shared by backend deployment and VAPID preparation. If you changed defaults, review, commit and push that file:
 
