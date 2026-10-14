@@ -32,6 +32,8 @@
     </p>
     <p>The public key loads automatically from the push backend. Sign in, enable push, then send a test notification to this device.</p>
     <button id="retryPushSetup" type="button">Retry push setup</button>
+    <p id="controlHelp" role="status" aria-live="polite"></p>
+    <button id="retrySubscriptionSave" type="button" hidden>Retry subscription save</button>
     <button id="sendTest" type="button" disabled>Send me a test notification</button>
 
     <section class="subscription-details js-subscription-details is-invisible">
@@ -53,6 +55,9 @@
       <p>Local status and recent app events. Tokens, account details, keys, and subscription endpoints are excluded.</p>
       <pre id="diagnosticsOutput"></pre>
       <button type="button" id="copyDiagnostics">Copy diagnostics</button>
+      <button type="button" id="downloadDiagnostics">Download diagnostics</button>
+      <p id="diagnosticsFeedback" role="status" aria-live="polite"></p>
+      <textarea id="diagnosticsManualCopy" aria-label="Diagnostics for manual copying" readonly hidden rows="12"></textarea>
       <button type="button" id="clearDiagnostics">Clear events</button>
       <p>Google’s popup can trigger COOP warnings while Firebase checks whether it closed. If you are signed in, those warnings do not indicate a failed login.</p>
     </details>

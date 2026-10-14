@@ -1,3 +1,4 @@
+import { withTimeout } from './timeout.mjs';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { getDatabase, ref, remove, set } from 'firebase/database';
@@ -23,6 +24,7 @@ let registration;
 let subscription = null;
 let serverPublicKey = '';
 let busy = false;
+let subscriptionSaved = false;
 let authReady = false;
 let syncing = 0;
 
@@ -43,7 +45,9 @@ function render() {
     'Notification permission': window.Notification?.permission || 'Unsupported',
     'Service worker': registration?.active?.state || (registration ? 'Registered' : 'Not registered'),
     'Push backend': serverPublicKey ? 'Public key loaded' : 'Not ready',
-    'Subscription': subscription ? 'Present in browser' : 'None'
+    'Subscription': subscription ? 'Present in browser' : 'None',
+    'Subscription storage': subscriptionSaved ? 'Saved for this account' : 'Not confirmed',
+    'Operation': busy ? 'In progress' : syncing ? 'Checking subscription' : 'Idle'
   });
   document.getElementById('notificationHelp').hidden = window.Notification?.permission !== 'denied';
   account.textContent = user ? `Signed in as ${user.displayName || user.email || 'Google user'}` : 'Sign in to manage your subscription.';
@@ -53,7 +57,17 @@ function render() {
   signOutButton.disabled = pending;
   pushButton.disabled = pending || !user || !registration || !serverPublicKey || window.Notification?.permission === 'denied';
   pushButton.textContent = window.Notification?.permission === 'denied' ? 'Notifications blocked' : subscription ? (currentKeyMatches() ? 'Disable Push Messaging' : 'Update push subscription') : 'Enable Push Messaging';
-  sendButton.disabled = pending || !user || !subscription || !currentKeyMatches();
+  sendButton.disabled = pending || !user || !subscription || !subscriptionSaved || !currentKeyMatches();
+  document.getElementById('controlHelp').textContent = pending ? 'An operation is in progress. Diagnostics remain available below.'
+    : !user ? 'Sign in with Google first.'
+    : !registration ? 'Waiting for the service worker. If this persists, reload the page.'
+    : !serverPublicKey ? 'The push backend is not ready. Use Retry push setup.'
+    : !subscription ? 'Enable push on this device before sending a test.'
+    : !currentKeyMatches() ? 'Update this device’s push subscription before sending.'
+    : !subscriptionSaved ? 'Your device subscription has not been saved. Use Retry subscription save.'
+    : 'Ready to send a test notification to this device.';
+  document.getElementById('retrySubscriptionSave').hidden = !user || !subscription || subscriptionSaved || !currentKeyMatches();
+  document.getElementById('retrySubscriptionSave').disabled = pending;
   retrySetupButton.hidden = !!serverPublicKey;
   retrySetupButton.disabled = pending;
   details.classList.toggle('is-invisible', !user || !subscription);
@@ -99,7 +113,11 @@ async function recordFor(current) {
 async function saveCurrentSubscription() {
   const current = subscription;
   if (current) {
-    await set(await recordFor(current), current.toJSON());
+    const uid = auth.currentUser?.uid;
+    subscriptionSaved = false;
+    await withTimeout(set(await recordFor(current), current.toJSON()),
+      'Saving the subscription timed out. Check your connection and database access, then retry the save.');
+    if (subscription === current && auth.currentUser?.uid === uid) subscriptionSaved = true;
     diagnostics.record('Subscription saved');
   }
 }
@@ -110,8 +128,9 @@ async function unsubscribe() {
   const record = await recordFor(subscription);
   const active = await registration.pushManager.getSubscription();
   if (active && !await active.unsubscribe()) throw new Error('Could not unsubscribe. Please try again.');
-  await remove(record);
+  await withTimeout(remove(record), 'Removing the subscription timed out. Check your connection and try again.');
   subscription = null;
+  subscriptionSaved = false;
 }
 
 async function subscribe() {
@@ -168,7 +187,7 @@ async function reconcile(user) {
   syncing += 1;
   render();
   try {
-    const current = await registration.pushManager.getSubscription();
+    const current = await withTimeout(registration.pushManager.getSubscription(), 'Checking the browser subscription timed out. Reload the page.');
     if (auth.currentUser?.uid !== user.uid) return;
     subscription = current;
     if (current && !currentKeyMatches()) {
@@ -188,6 +207,7 @@ onAuthStateChanged(auth, async user => {
   authReady = true;
   diagnostics.record(user ? 'Auth state: signed in' : 'Auth state: signed out');
   subscription = null;
+  subscriptionSaved = false;
   render();
   if (user && registration) await reconcile(user);
 });
@@ -199,7 +219,7 @@ async function start() {
   }
   try {
     registration = await navigator.serviceWorker.register('sw.js');
-    await navigator.serviceWorker.ready;
+    await withTimeout(navigator.serviceWorker.ready, 'The service worker did not become ready. Reload the page.');
     diagnostics.record('Service worker ready');
     try { await loadBackendKey(); } catch (error) { showError(error); }
     if (auth.currentUser) {
@@ -211,11 +231,32 @@ async function start() {
   render();
 }
 
+document.getElementById('retrySubscriptionSave').addEventListener('click', () => perform(saveCurrentSubscription, 'Save subscription'));
+
 document.getElementById('clearDiagnostics').addEventListener('click', () => diagnostics.clear());
-document.getElementById('copyDiagnostics').addEventListener('click', () => perform(async () => {
-  await navigator.clipboard.writeText(diagnostics.text());
-  status.textContent = 'Diagnostics copied.';
-}, 'Copy diagnostics'));
+document.getElementById('copyDiagnostics').addEventListener('click', async () => {
+  const feedback = document.getElementById('diagnosticsFeedback');
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+    await withTimeout(navigator.clipboard.writeText(diagnostics.text()), 'Clipboard timed out.', 5000);
+    feedback.textContent = 'Diagnostics copied.';
+  } catch {
+    const manual = document.getElementById('diagnosticsManualCopy');
+    manual.value = diagnostics.text();
+    manual.hidden = false;
+    manual.focus();
+    manual.select();
+    feedback.textContent = 'Clipboard access failed. Copy the selected text below, or download diagnostics.';
+  }
+});
+document.getElementById('downloadDiagnostics').addEventListener('click', () => {
+  const url = URL.createObjectURL(new Blob([diagnostics.text()], { type: 'text/plain' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'push-diagnostics.txt';
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
 
 // Unsupported browsers may not expose Notification at all.
 if (!('Notification' in window)) {

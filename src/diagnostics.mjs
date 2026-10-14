@@ -1,7 +1,7 @@
 const errorCodes = new Set([
   'auth/unauthorized-domain', 'auth/popup-blocked', 'auth/popup-closed-by-user',
   'auth/cancelled-popup-request', 'auth/network-request-failed',
-  'auth/operation-not-allowed', 'PERMISSION_DENIED', 'permission-denied'
+  'auth/operation-not-allowed', 'operation/timeout', 'PERMISSION_DENIED', 'permission-denied'
 ]);
 const errorNames = new Set(['NotAllowedError', 'InvalidStateError', 'AbortError', 'NetworkError']);
 
@@ -16,7 +16,7 @@ export function createDiagnostics(document) {
   const events = [];
   const output = document.getElementById('diagnosticsOutput');
   const fields = ['Site', 'Auth domain', 'Signed in', 'Secure context', 'Push supported',
-    'Notification permission', 'Service worker', 'Push backend', 'Subscription'];
+    'Notification permission', 'Service worker', 'Push backend', 'Subscription', 'Subscription storage', 'Operation'];
   function refresh() {
     output.textContent = fields.map(field => `${field}: ${state[field] ?? 'Checking'}`).join('\n')
       + '\n\nRecent events (this tab only):\n' + (events.join('\n') || 'None');

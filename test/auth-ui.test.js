@@ -8,11 +8,12 @@ const code = buildSync({
   external: ['firebase/*'], write: false
 }).outputFiles[0].text;
 
-async function loadPage(hostname = 'web-push-4u2c.web.app') {
+async function loadPage(hostname = 'web-push-4u2c.web.app', options = {}) {
   const elements = new Map();
   function element(id) {
     if (!elements.has(id)) elements.set(id, {
       value: '', textContent: '', style: {}, handlers: {},
+      focus() {}, select() {},
       classList: { toggle() {} },
       addEventListener(event, handler) { this.handlers[event] = handler; }
     });
@@ -48,12 +49,13 @@ async function loadPage(hostname = 'web-push-4u2c.web.app') {
     },
     'firebase/database': {
       getDatabase: () => ({}), ref: (_db, path) => path,
-      async set(path, value) { writes.push({ path, value }); },
+      async set(path, value) { writes.push({ path, value }); if (options.hangSave) await new Promise(() => {}); },
       async remove(path) { deletions.push(path); }
     }
   };
   vm.runInNewContext(code, {
-    require: name => modules[name], console, crypto, TextEncoder, atob, btoa,
+    require: name => modules[name], console, crypto, TextEncoder, atob, btoa, AbortSignal,
+    setTimeout: (handler, delay) => setTimeout(handler, options.hangSave ? 20 : delay), clearTimeout,
     location: { hostname },
     fetch: async (url, options) => { requests.push({ url, options }); return { ok: true, json: async () => url.endsWith('/config') ? { publicKey } : { sent: true } }; },
     window: { PushManager: {}, Notification: { permission: 'granted' } },
@@ -61,7 +63,7 @@ async function loadPage(hostname = 'web-push-4u2c.web.app') {
     document: { getElementById: element, querySelector: element },
     navigator: {
       serviceWorker: { register: async () => registration, ready: Promise.resolve(registration) },
-      clipboard: { writeText: async () => {} }
+      clipboard: { writeText: async () => { if (options.failClipboard) throw new Error('Denied'); } }
     }
   });
   await callback(null);
@@ -112,4 +114,21 @@ test('public key loads automatically and self-test sends only this device ID', a
   const body = JSON.parse(request.options.body);
   assert.deepEqual(Object.keys(body), ['subscriptionId']);
   assert.match(body.subscriptionId, /^[a-f0-9]{64}$/);
+});
+
+
+test('diagnostics copying remains available while a database save is pending and has a manual fallback', async () => {
+  const page = await loadPage(undefined, { hangSave: true, failClipboard: true });
+  await page.element('signIn').handlers.click();
+  const save = page.element('.js-push-btn').handlers.click();
+  await new Promise(resolve => setImmediate(resolve));
+  await page.element('copyDiagnostics').handlers.click();
+  assert.match(page.element('diagnosticsFeedback').textContent, /Clipboard access failed/);
+  assert.equal(page.element('diagnosticsManualCopy').hidden, false);
+  assert.match(page.element('diagnosticsManualCopy').value, /Operation: In progress/);
+  await save;
+  assert.equal(page.element('signOut').disabled, false);
+  assert.equal(page.element('sendTest').disabled, true);
+  assert.equal(page.element('retrySubscriptionSave').hidden, false);
+  assert.match(page.element('status').textContent, /timed out/);
 });

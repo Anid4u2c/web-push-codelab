@@ -115,9 +115,28 @@ The setup script checks the runtime identity before making changes. If permissio
 
 ## Diagnostics
 
-Expand **Diagnostics** on the page for the active site/auth domain, authentication state, browser support, notification permission, service-worker state, backend key availability, and subscription presence. Copy or clear the latest 20 app events; they stay in memory for this tab and use the browser's local time. Diagnostics exclude account identifiers, credentials and subscription contents. They summarize app events rather than intercepting the browser console.
+Expand **Diagnostics** on the page for the active site/auth domain, authentication state, browser support, notification permission, service-worker state, backend key availability, and subscription presence. Copy, download or clear the latest 20 app events; they stay in memory for this tab and use the browser's local time. Diagnostics exclude account identifiers, credentials and subscription contents. They summarize app events rather than intercepting the browser console. Copy remains available during other operations; when clipboard access fails, a selectable text field appears. Download diagnostics is an alternative. The page explains why push/test controls are disabled and distinguishes a browser subscription from a subscription saved for the signed-in account. Database saves time out with a retry option instead of indefinitely locking controls. A timeout does not cancel a queued database write; a retry writes the same owned device record.
 
 Google popup authentication can emit COOP `window.closed` warnings while Firebase polls for cancellation. A signed-in account indicates login completed despite those warnings. If notifications are denied, allow them in the browser's site permissions and reload.
+
+### Export backend logs from Cloud Shell
+
+After reproducing an issue, run from your checkout while signed in with a Cloud Logging reader identity:
+
+```sh
+node scripts/export-push-logs.mjs --since 1h --limit 200
+```
+
+The script uses the active `gcloud` project; override with `--project PROJECT_ID` if needed. It writes a timestamped JSON file under the project-root **logs/** folder, which is ignored by Git, and prints request status counts without dumping log contents. Audit logs are excluded so deployment records do not crowd out requests and application errors. For a named file:
+
+```sh
+node scripts/export-push-logs.mjs --output logs/push-logs.json
+cloudshell download logs/push-logs.json
+```
+
+Existing files are not overwritten. Exported logs can contain personal data; review before sharing. A signed-in page alone is not sufficient to send: notification permission, a matching browser subscription and a confirmed database save are required. If no `testpush` request appears, use the page diagnostics to identify the blocked client step.
+
+The CLI warning **Failed to fetch the list of extensions** is separate from function application errors. This app deploys standalone functions, not an extension. If deployment continues successfully, that warning alone is not a reason to add Extensions permissions. Investigate it if extension management is actually needed.
 
 ## Current limitations
 

@@ -30,3 +30,6 @@ app/dist/
 
 .secret.local
 .runtimeconfig.json
+
+# Private troubleshooting exports
+/logs/
