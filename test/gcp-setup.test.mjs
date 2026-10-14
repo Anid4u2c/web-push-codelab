@@ -12,6 +12,7 @@ async function runSetup(mode, answers = ['demo-push-project', '', '', '', 'y']) 
     await mkdir(join(directory, 'functions'));
     await copyFile(new URL('../scripts/setup-gcp.mjs', import.meta.url), join(directory, 'scripts/setup-gcp.mjs'));
     await writeFile(join(directory, 'functions/deployment-config.json'), JSON.stringify({ projectId: 'demo-push-project', runtimeAccountId: 'private-runtime', deploymentAccountId: 'private-deploy', vapidSecretName: 'PRIVATE_SECRET' }));
+    await writeFile(join(directory, 'scripts/check-database.mjs'), `console.log('Database readiness check executed'); process.exit(process.env.MODE === 'database-failed' ? 1 : 0);`);
     const log = join(directory, 'calls.jsonl');
     await writeFile(join(directory, 'gcloud'), `#!/usr/bin/env node
 const fs = require('node:fs');
@@ -117,4 +118,13 @@ test('Cloud Shell setup uses the active gcloud project when Enter is pressed', a
   assert.ok(result.calls.some(args => starts(args, 'artifacts repositories set-cleanup-policies') && args.includes('--no-dry-run')));
   assert.match(result.output, /Project ID \[demo-push-project\]/);
   assert.ok(result.calls.some(args => starts(args, 'projects describe') && args.includes('demo-push-project')));
+});
+
+
+test('setup does not report success or configure cleanup when database readiness fails', async () => {
+  const result = await runSetup('database-failed');
+  assert.equal(result.code, 1);
+  assert.match(result.output, /Realtime Database readiness check failed/);
+  assert.doesNotMatch(result.output, /Setup complete/);
+  assert.equal(result.calls.some(args => starts(args, 'artifacts repositories set-cleanup-policies')), false);
 });

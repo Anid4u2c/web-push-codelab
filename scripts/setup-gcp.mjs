@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { stdin, stdout } from 'node:process';
@@ -68,7 +69,7 @@ try {
   }
   const hasSecret = list => list.some(secret => secret.name.split('/').at(-1) === secretId);
   console.log(`${secrets ? (hasSecret(secrets) ? 'Reuse' : 'Create empty secret container') : 'Check after enabling Secret Manager API, then reuse or create empty container'}: ${secretId}`);
-  console.log(`\nPlan: enable required APIs; grant the runtime account Database Admin and secret-specific Secret Accessor; grant the deployment account Hosting Admin, Database Admin, Functions Admin, Cloud Run Admin, Service Account User on runtime and existing default App Engine and Compute accounts, and secret-specific Secret Manager Admin. Add a 7-day image cleanup policy to the existing function artifact repository if none exists. Existing policies and secret versions are preserved.`);
+  console.log(`\nPlan: enable required APIs; grant the runtime account Database Admin and secret-specific Secret Accessor; grant the deployment account Hosting Admin, Database Admin, Functions Admin, Cloud Run Admin, Service Account User on runtime and existing default App Engine and Compute accounts, and secret-specific Secret Manager Admin. Verify that the configured Realtime Database instance exists and is active. Add a 7-day image cleanup policy to the existing function artifact repository if none exists. Existing policies and secret versions are preserved.`);
   if ((await prompt.question('Apply these changes? [y/N]: ')).trim().toLowerCase() !== 'y') {
     console.log('Cancelled. No changes applied.');
   } else {
@@ -98,6 +99,13 @@ try {
     for (const [email, role] of [[runtime, 'roles/secretmanager.secretAccessor'], [deploy, 'roles/secretmanager.admin']]) {
       gcloud('secrets', 'add-iam-policy-binding', secretId, '--project', project,
         `--member=serviceAccount:${email}`, `--role=${role}`, '--condition=None');
+    }
+    const databaseCheck = spawnSync(process.execPath, [fileURLToPath(new URL('./check-database.mjs', import.meta.url))], {
+      stdio: 'inherit'
+    });
+    if (databaseCheck.error) throw databaseCheck.error;
+    if (databaseCheck.status !== 0) {
+      throw new Error('Realtime Database readiness check failed. Resolve the database prerequisite above, then rerun setup. Earlier successful setup changes are preserved.');
     }
     const repositories = gcloud('artifacts', 'repositories', 'list', '--location=us-central1', '--project', project);
     const artifacts = repositories.find(repository => repository.name.split('/').at(-1) === 'gcf-artifacts');

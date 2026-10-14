@@ -18,11 +18,15 @@ try {
   const result = await response.json();
   const instances = result.instances || [];
   console.log('Configured database URL:', firebaseConfig.databaseURL);
-  if (!instances.length) console.log('No database instances returned. Check the selected project and create a database if needed.');
+  if (!instances.length) throw new Error('No Realtime Database instance exists. In Firebase Console, open Build → Realtime Database → Create database. Choose the intended region and locked mode, then update both app/backend URLs if different and deploy the owner rules. Enabling the API alone does not create a database.');
   for (const instance of instances) {
     console.log(JSON.stringify({ databaseURL: instance.databaseUrl, state: instance.state,
       matchesConfiguredURL: instance.databaseUrl?.replace(/\/$/, '') === firebaseConfig.databaseURL.replace(/\/$/, '') }));
   }
+  const matching = instances.find(instance => instance.databaseUrl?.replace(/\/$/, '') === firebaseConfig.databaseURL.replace(/\/$/, ''));
+  if (!matching) throw new Error('Configured database URL does not match a listed instance. Update frontend and backend URLs and verify the rules deployment target before deploying.');
+  if (matching.state !== 'ACTIVE') throw new Error('The configured database instance is not ACTIVE. Review its state in Firebase Console; setup will not restore, enable or replace an instance automatically.');
+  console.log('Database instance exists, matches configuration and is ACTIVE.');
   console.log('Only instance metadata was read. No database records, subscriptions or credential values were displayed.');
 } catch (error) {
   console.error(error.message);
